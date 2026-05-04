@@ -75,7 +75,7 @@ pub fn detect_clean(directory: String) {
             "build.meson" => crate::meson::clean(path.clone()),
             "go.mod" => crate::go::clean(path.clone()),
             _ => {
-                unimplemented!()
+                continue;
             }
         }
     }
