@@ -4,7 +4,6 @@ version = "0.1.2"
 edition = "2024"
 readme = "README.md"
 license = "MIT"
-license-file = "LICENSE"
 repository = "https://github.com/notchapplez/unin.rs"
 description = "A universal installer for many languages so you don't have to remember any command"
 
