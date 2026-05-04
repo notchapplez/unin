@@ -16,7 +16,7 @@ use std::{
 pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     let mut full_path = String::new();
     //defines the function
-    if directory == PathBuf::from(".") {
+    if directory == *"." {
         let directory = env::current_dir().unwrap();
         full_path = String::from(directory.absolutize().unwrap().to_str().unwrap());
     } else {
@@ -45,7 +45,7 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
                 if checking_content.contains("Compiling") {
                     let appropriate_variable_name_here = checking_content.trim().to_string();
                     print!("\r\x1B[K{}", appropriate_variable_name_here.bold().purple());
-                    let _ = std::io::stdout().flush().unwrap();
+                    std::io::stdout().flush().unwrap();
                 } else if checking_content.contains("error:") {
                     has_error = true;
                 }

@@ -35,7 +35,7 @@ pub fn compile_cmake(directory: PathBuf, noinstall: bool) {
         if line.contains("option(") {
             //if the line contains option()
             line.split("("); //to do this, split the line by ()
-            let linecontentfiltered = format!("{}", line.replace("option(", "").replace(")", "")); //some formatting stuff
+            let linecontentfiltered = line.replace("option(", "").replace(")", "").to_string(); //some formatting stuff
 
             let result: Vec<&str> = regex
                 .find_iter(linecontentfiltered.as_str())
@@ -161,7 +161,7 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
     let cores = num_cpus::get(); //number of cores
     println!("Now compiling {}", directory.to_str().unwrap().yellow()); //Start message
 
-    if noinstall == true {
+    if noinstall {
         //if the user only wants to build
         println!("Skipping install step."); //notifies
         let mut make_process = commands::Command::new("make") //builds the project
@@ -250,7 +250,7 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
                         if content.contains("Building") {
                             let mut contented = content.split("[").collect::<Vec<&str>>();
                             contented[0] = "[";
-                            let contented_string = contented.iter().map(|s| *s).collect::<String>();
+                            let contented_string = contented.iter().copied().collect::<String>();
                             print!("\r\x1B[K{}", contented_string.bold().purple());
                             std::io::stdout().flush().unwrap();
                         }

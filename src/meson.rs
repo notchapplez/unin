@@ -178,3 +178,15 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     }
     println!("Installation finished successfully.");
 }
+pub fn clean(directory: PathBuf) {
+    if !directory.exists() {
+        println!("Nothing to do.");
+        exit(0)
+    }
+    let cleaner = fs::remove_dir_all(format!("{}/build", directory.to_str().unwrap()));
+    if cleaner.is_err() {
+        println!("Cleaning failed.");
+        exit(1);
+    }
+    println!("Cleaned build directory.");
+}

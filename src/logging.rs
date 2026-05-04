@@ -9,7 +9,7 @@ pub fn log_to_file(directory: PathBuf, name: String, content: String) -> String 
     }
     let _ = fs::write(&file_path, content);
     if path.clone().exists() {
-        path = path.clone().canonicalize().unwrap_or_else(|_| path);
+        path = path.clone().canonicalize().unwrap_or(path);
         String::from(path.to_str().unwrap())
     } else {
         String::from("<File could not be created>")

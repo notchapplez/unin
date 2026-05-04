@@ -70,6 +70,8 @@ pub fn detect_clean(directory: String) {
             "CMakeLists.txt" => crate::cmake::clean(path.clone()),
             "build.zig" => crate::zig::clean(path.clone()),
             "Makefile" => crate::make::clean(path.clone()),
+            "build.meson" => crate::meson::clean(path.clone()),
+            "go.mod" => crate::go::clean(path.clone()),
             _ => {
                 unimplemented!()
             }
@@ -80,7 +82,7 @@ pub fn detect_clean(directory: String) {
 pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBuf> {
     let temp = directory.canonicalize().unwrap();
     let mut paths: Vec<PathBuf> = vec![];
-    for file in fs::read_dir(PathBuf::from(temp.clone())).unwrap() {
+    for file in fs::read_dir(temp.clone()).unwrap() {
         let file_path = file.unwrap().path();
         paths.push(file_path);
     }
@@ -109,7 +111,7 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
 
         if !status.success() {
             println!("Failed to copy binaries ");
-            errors.push(format!("{}", binary.to_str().unwrap()));
+            errors.push(binary.to_str().unwrap().to_string());
             continue;
         } else {
             if Command::new("sudo")
@@ -128,7 +130,7 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
                     binary.to_str().unwrap(),
                     destination.green()
                 );
-                errors.push(format!("{}", binary.to_str().unwrap()));
+                errors.push(binary.to_str().unwrap().to_string());
                 continue;
             }
         }
@@ -151,7 +153,7 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
                 .unwrap()
                 .to_string(),
             paths: vec![PathBuf::from(installed_absolute_path)],
-            change_date: String::from(time_create()),
+            change_date: time_create(),
             updated: false,
         };
         registry_write(&temp_binary);

@@ -35,42 +35,41 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
     let mut full_content = String::new();
     let mut has_error = false;
 
-    for line in reader.lines() {
-        if let Ok(mut content) = line {
-            let raw_content = content.clone();
-            if content.contains("CC")
-                || content.contains("LD")
-                || content.contains("LINK")
-                || content.contains("AR")
-                || content.contains("checking")
-                || content.contains("CCLD")
-                || content.contains("LDSHARED")
-                || content.contains("RANLIB")
-                || content.contains("Building")
-                || content.contains("Built")
-            {
-                content = strip_ansi_codes(&content.to_string().to_owned()).to_string();
-                content = content.trim().to_string();
-                let mut content_vec = content
-                    .split_whitespace()
-                    .map(String::from)
-                    .collect::<Vec<String>>();
-                content_vec[0] = content_vec[0].blue().bold().to_string();
-                content_vec[1..].iter_mut().for_each(|s| {
-                    *s = s.purple().bold().to_string();
-                });
-                content = content_vec.join(" ");
-                print!("\r\x1B[K{}", content.trim_end());
-                std::io::stdout().flush().unwrap();
-            } else if content.contains("error:") || content.contains("No targets.") {
-                has_error = true;
-                full_content.push_str(&raw_content.clone());
-                full_content.push('\n');
-                continue;
-            }
+    for line in reader.lines().flatten() {
+        let mut content = line;
+        let raw_content = content.clone();
+        if content.contains("CC")
+            || content.contains("LD")
+            || content.contains("LINK")
+            || content.contains("AR")
+            || content.contains("checking")
+            || content.contains("CCLD")
+            || content.contains("LDSHARED")
+            || content.contains("RANLIB")
+            || content.contains("Building")
+            || content.contains("Built")
+        {
+            content = strip_ansi_codes(&content.to_string().to_owned()).to_string();
+            content = content.trim().to_string();
+            let mut content_vec = content
+                .split_whitespace()
+                .map(String::from)
+                .collect::<Vec<String>>();
+            content_vec[0] = content_vec[0].blue().bold().to_string();
+            content_vec[1..].iter_mut().for_each(|s| {
+                *s = s.purple().bold().to_string();
+            });
+            content = content_vec.join(" ");
+            print!("\r\x1B[K{}", content.trim_end());
+            std::io::stdout().flush().unwrap();
+        } else if content.contains("error:") || content.contains("No targets.") {
+            has_error = true;
             full_content.push_str(&raw_content.clone());
             full_content.push('\n');
+            continue;
         }
+        full_content.push_str(&raw_content.clone());
+        full_content.push('\n');
     }
     let _waiter = make_process
         .wait()

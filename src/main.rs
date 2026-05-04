@@ -1,6 +1,7 @@
 pub mod cmake;
 mod comms;
 mod go;
+mod haskell;
 pub mod installer;
 mod logging;
 pub mod make;
@@ -89,7 +90,14 @@ fn main() {
             cli.clean.clone().unwrap().to_str().unwrap().yellow()
         );
         let _ = io::stdout().flush();
-        detect_clean(cli.clean.unwrap().to_str().unwrap().to_owned());
+        detect_clean(
+            cli.clean
+                .clone()
+                .unwrap_or_else(|| panic!("Couldn't unwrap."))
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        );
         exit(0);
     }
     if cli.test {

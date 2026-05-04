@@ -1,9 +1,8 @@
 use crate::tools::find_files_because_the_user_is_too_lazy;
 use colored::Colorize;
-use std::io;
-use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{exit, Command, Stdio};
+use std::process::exit;
+use std::{fs, io};
 
 pub fn compile_go(directory: PathBuf, noinstall: bool) {
     use std::io::{BufRead, BufReader, Write};
@@ -12,7 +11,7 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
     use std::thread;
 
     let mut child = Command::new("go")
-        .args(&["build", "-o", "unin_built_temp/"]) // don't specify no file for ****'s sake
+        .args(["build", "-o", "unin_built_temp/"]) // don't specify no file for ****'s sake
         .current_dir(&directory)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -39,7 +38,7 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
     });
 
     thread::spawn(move || {
-        let mut out = std::io::stdout();
+        let mut out = io::stdout();
         let reader = BufReader::new(stdout);
         for line in reader.lines() {
             match line {
@@ -53,7 +52,7 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
         }
     });
 
-    while let Ok((line, is_err)) = rx.recv() {
+    while let Ok((line, _is_err)) = rx.recv() {
         print!("got {}", line);
         io::stdout().flush().unwrap();
     }
@@ -70,15 +69,20 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
                 .yellow()
                 .underline()
         );
-        let test = PathBuf::from(format!(
-            "{}/unin_built_temp/",
-            directory.to_str().clone().unwrap()
-        ));
-		println!();
-		println!("I found some files, here they are:");
+        let test = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));
+        println!();
+        println!("I found some files, here they are:");
         find_files_because_the_user_is_too_lazy(test)
             .iter()
             .for_each(|x| println!("{}", x.to_str().unwrap()));
-		exit(0)
+        exit(0)
     }
+}
+pub fn clean(directory: PathBuf) {
+    let build_dir = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));
+    if !build_dir.exists() {
+        println!("Nothing to do");
+        exit(0);
+    }
+    fs::remove_dir_all(build_dir).expect("The cleaner fucked up. i don't know why.")
 }
