@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use unin_bin::{UninPackage, registry_write, time_create};
+use crate::haskell::compile_haskell;
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -48,6 +49,7 @@ pub fn detect(path: String, noinstall: bool) {
             "build.zig" => build_zig(PathBuf::from(&path), noinstall),
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
+            "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall),
             _ => {}
         }
     }
