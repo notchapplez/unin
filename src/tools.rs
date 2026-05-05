@@ -6,12 +6,13 @@ use crate::{
 use crate::go::compile_go;
 use crate::haskell::compile_haskell;
 use colored::Colorize;
+use libc::sigdelset;
 use path_absolutize::Absolutize;
 use std::collections::HashSet;
-use std::hash::Hash;
-use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use std::fs::File;
+use std::hash::Hash;
 use std::io::Read;
+use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use unin_bin::{UninPackage, registry_write, time_create};
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -179,18 +180,22 @@ fn find_executable_file_in_the_goddamn_end_folder(files: Vec<PathBuf>) -> Vec<Pa
     files
         .into_iter()
         .filter_map(|path| {
-            let file_name = path.file_name()?.to_str()?;
-            if file_name.contains(".so") { return None; }
-            if !is_elf_quiet(file_name) { return None; }
-            match fs::metadata(&path) {
-                Ok(meta) => {
-                    if meta.permissions().mode() & 0o111 != 0 {
-                        Some(path)
+            if is_elf_quiet(path.to_str().unwrap()) {
+                if path.is_file() {
+                    if path.metadata().unwrap().permissions().mode() & 0o111 != 0 {
+                        if !path.file_name().unwrap().to_str().unwrap().contains(".so") {
+                            Some(path)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
+                } else {
+                    None
                 }
-                Err(_) => None,
+            } else {
+                None
             }
         })
         .collect()

@@ -6,7 +6,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio, exit};
-use unin_bin::{registry_write, time_create, UninPackage};
+use unin_bin::{UninPackage, registry_write, time_create};
 
 pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let mut setup = Command::new("meson")
@@ -171,8 +171,6 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     println!("Installation finished successfully.");
     let output_dir = format!("{}/build/", directory.to_str().unwrap());
     let files = find_files_because_the_user_is_too_lazy(PathBuf::from(output_dir.clone()));
-    println!("Debugging: {:?}", files); //IMPORTANT: Refined installation process as the installer also copied libs to /usr/local/bin which is wrong. REPEAT SNIPPET FROM tools.rs
-    println!("A");
     for binary in files {
         let last_item_binary = binary
             .to_str()
