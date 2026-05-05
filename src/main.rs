@@ -1,5 +1,6 @@
 pub mod cmake;
 mod comms;
+mod confidcure;
 mod go;
 mod haskell;
 pub mod installer;
@@ -66,6 +67,14 @@ struct Cli {
 
     )]
     uninstall: Option<String>,
+
+    #[arg(
+        long,
+        num_args = 0..=1,
+        default_missing_value = "true",
+        required = false,
+    )]
+    queue_registry: Option<bool>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -106,6 +115,10 @@ fn main() {
     }
     if !cli.uninstall.clone().unwrap_or_default().is_empty() {
         registry::registry_uninstall(cli.uninstall.clone().unwrap());
+        exit(0);
+    }
+    if cli.queue_registry.is_some() {
+        registry::get_registry();
         exit(0);
     }
 

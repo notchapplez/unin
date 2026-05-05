@@ -35,7 +35,7 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
     let mut full_content = String::new();
     let mut has_error = false;
 
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         let mut content = line;
         let raw_content = content.clone();
         if content.contains("CC")
@@ -62,7 +62,10 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
             content = content_vec.join(" ");
             print!("\r\x1B[K{}", content.trim_end());
             std::io::stdout().flush().unwrap();
-        } else if content.contains("error:") || content.contains("No targets.") {
+        } else if content.contains("error:")
+            || content.contains("No targets.")
+            || content.contains("make: ***")
+        {
             has_error = true;
             full_content.push_str(&raw_content.clone());
             full_content.push('\n');

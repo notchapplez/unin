@@ -1,15 +1,18 @@
 use crate::{
-    cmake::compile_cmake, make::build_make, meson::start_meson, rust::compile_rust, zig::build_zig,
+    cmake::compile_cmake, confidcure::confihgure, make::build_make, meson::start_meson,
+    rust::compile_rust, zig::build_zig,
 };
 
 use crate::go::compile_go;
+use crate::haskell::compile_haskell;
 use colored::Colorize;
 use path_absolutize::Absolutize;
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::fs::File;
+use std::io::Read;
 use unin_bin::{UninPackage, registry_write, time_create};
-use crate::haskell::compile_haskell;
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -42,14 +45,14 @@ pub fn detect(path: String, noinstall: bool) {
         let os_filename = entry.file_name();
         let filename = os_filename.into_string().unwrap();
         match filename.as_str() {
-            "configure" => todo!(),
+            "configure" => confihgure(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
             "Makefile" => build_make(PathBuf::from(&path), noinstall),
             "build.zig" => build_zig(PathBuf::from(&path), noinstall),
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
-            "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall),
+            "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall), //wth is this
             _ => {}
         }
     }
@@ -88,6 +91,7 @@ pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBu
         let file_path = file.unwrap().path();
         paths.push(file_path);
     }
+    println!("Paths: {:?}", paths.clone());
 
     find_executable_file_in_the_goddamn_end_folder(paths.clone())
 }
@@ -170,17 +174,36 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
 pub fn sudo() -> bool {
     unsafe { libc::geteuid() == 0 }
 }
+
 fn find_executable_file_in_the_goddamn_end_folder(files: Vec<PathBuf>) -> Vec<PathBuf> {
     files
         .into_iter()
-        .filter(|path| {
-            if let Ok(metadata) = fs::metadata(path) {
-                metadata.is_file() && (metadata.permissions().mode() & 0o111 != 0)
-            } else {
-                false
+        .filter_map(|path| {
+            let file_name = path.file_name()?.to_str()?;
+            if file_name.contains(".so") { return None; }
+            if !is_elf_quiet(file_name) { return None; }
+            match fs::metadata(&path) {
+                Ok(meta) => {
+                    if meta.permissions().mode() & 0o111 != 0 {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
             }
         })
         .collect()
+}
+
+fn is_elf(path: &str) -> io::Result<bool> {
+    let mut f = File::open(path)?;
+    let mut buf = [0u8; 4];
+    let n = f.read(&mut buf)?;
+    Ok(n == 4 && buf == [0x7f, b'E', b'L', b'F'])
+}
+fn is_elf_quiet(path: &str) -> bool {
+    is_elf(path).unwrap_or(false)
 }
 pub fn only_unique<T: Eq + Hash + Clone>(first: &[T], second: &[T]) -> Vec<T> {
     let first_set: HashSet<_> = first.iter().collect();

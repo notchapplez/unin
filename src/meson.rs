@@ -6,6 +6,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio, exit};
+use unin_bin::{registry_write, time_create, UninPackage};
 
 pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let mut setup = Command::new("meson")
@@ -126,7 +127,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     }
 
     let mut installer = Command::new("sudo")
-        .args(&["ninja", "-C", "build", "install"])
+        .args(["ninja", "-C", "build", "install"])
         .current_dir(directory.clone())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -167,16 +168,38 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         println!("{}", full_content);
         exit(1);
     }
-    let build_dir = format!("{}/build", directory.to_str().unwrap());
-    let installer = install_to_bin(find_files_because_the_user_is_too_lazy(PathBuf::from(
-        build_dir,
-    )));
-    if installer.is_err() {
-        println!("Installation failed. Here is the full output:");
-        println!("{}", installer.unwrap_err());
-        exit(1);
-    }
     println!("Installation finished successfully.");
+    let output_dir = format!("{}/build/", directory.to_str().unwrap());
+    let files = find_files_because_the_user_is_too_lazy(PathBuf::from(output_dir.clone()));
+    println!("Debugging: {:?}", files); //IMPORTANT: Refined installation process as the installer also copied libs to /usr/local/bin which is wrong. REPEAT SNIPPET FROM tools.rs
+    println!("A");
+    for binary in files {
+        let last_item_binary = binary
+            .to_str()
+            .unwrap()
+            .split("/")
+            .collect::<Vec<&str>>()
+            .last()
+            .unwrap()
+            .to_string();
+        let installed_absolute_path = format!("/usr/local/bin/{}", last_item_binary);
+        let temp_binary: UninPackage = UninPackage {
+            name: binary
+                .to_str()
+                .unwrap()
+                .split('/')
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+                .to_string(),
+            paths: vec![PathBuf::from(installed_absolute_path)],
+            change_date: time_create(),
+            updated: false,
+        };
+        registry_write(&temp_binary);
+        println!("\n{}", temp_binary);
+    }
+    println!("B")
 }
 pub fn clean(directory: PathBuf) {
     if !directory.exists() {

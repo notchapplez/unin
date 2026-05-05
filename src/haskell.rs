@@ -1,10 +1,10 @@
+use colored::Colorize;
 use std::io;
-use std::process::exit;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
+use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
-use colored::Colorize;
 
 pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
     let config_file_path = PathBuf::from(format!(
@@ -36,13 +36,20 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
     let reader = BufReader::new(stdout);
 
     for line in reader.lines().map_while(Result::ok) {
-        if line.contains("Starting") || line.contains("Building") || line.contains("Configuring") || line.contains("Downloaded") || line.contains("Downloading") || line.contains("Resolving") || line.contains("Completed") {
+        if line.contains("Starting")
+            || line.contains("Building")
+            || line.contains("Configuring")
+            || line.contains("Downloaded")
+            || line.contains("Downloading")
+            || line.contains("Resolving")
+            || line.contains("Completed")
+        {
             print!("\r\x1B[K{}", line);
             io::stdout().flush().unwrap();
             transmitter.send(line.to_string()).unwrap();
             continue;
         }
-        print!("\r\x1B[K{}", "a");
+        print!("\r\x1B[K{}", "Debug".underline());
         io::stdout().flush().unwrap();
         transmitter.send(line.to_string()).unwrap();
     }
@@ -53,14 +60,17 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
 
     for line in stderr_reader.lines().map_while(Result::ok) {
         if line.contains("error") {
-            println!("{}","An error occurred. The full output will be shown below".red());
+            println!(
+                "{}",
+                "An error occurred. The full output will be shown below".red()
+            );
             stderr_has_error = true;
         }
     }
 
-	if stderr_has_error {
-		println!("Full error output:");
-		receiver.iter().for_each(|line| println!("{}", line))
-	}
-	exit(0)
+    if stderr_has_error {
+        println!("Full error output:");
+        receiver.iter().for_each(|line| println!("{}", line))
+    }
+    exit(0)
 }
