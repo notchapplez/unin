@@ -6,13 +6,12 @@ use crate::{
 use crate::go::compile_go;
 use crate::haskell::compile_haskell;
 use colored::Colorize;
-use libc::sigdelset;
 use path_absolutize::Absolutize;
 use std::collections::HashSet;
-use std::fs::File;
 use std::hash::Hash;
-use std::io::Read;
 use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::fs::File;
+use std::io::Read;
 use unin_bin::{UninPackage, registry_write, time_create};
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -88,10 +87,11 @@ pub fn detect_clean(directory: String) {
 pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBuf> {
     let temp = directory.canonicalize().unwrap();
     let mut paths: Vec<PathBuf> = vec![];
-    for file in fs::read_dir(temp.clone()).unwrap() {
-        let file_path = file.unwrap().path();
-        paths.push(file_path);
-    }
+    fs::read_dir(temp).unwrap().for_each(|entry| {
+        let path = entry.unwrap().path();
+        paths.push(path);
+    });
+
     println!("Paths: {:?}", paths.clone());
 
     find_executable_file_in_the_goddamn_end_folder(paths.clone())
@@ -177,28 +177,20 @@ pub fn sudo() -> bool {
 }
 
 fn find_executable_file_in_the_goddamn_end_folder(files: Vec<PathBuf>) -> Vec<PathBuf> {
-    files
-        .into_iter()
-        .filter_map(|path| {
-            if is_elf_quiet(path.to_str().unwrap()) {
-                if path.is_file() {
-                    if path.metadata().unwrap().permissions().mode() & 0o111 != 0 {
-                        if !path.file_name().unwrap().to_str().unwrap().contains(".so") {
-                            Some(path)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
+    let mut empty_vec: Vec<String> = Vec::new();
+    for file in files {
+        let file_name = file.file_name().and_then(|s| s.to_str().map(|s| s.to_owned())).unwrap(); //war crime committed /j
+        if !file_name.contains(".so") {
+            if is_elf_quiet(file.to_str().unwrap()) {
+                if let Ok(metadata) = fs::metadata(&file) {
+                    if metadata.permissions().mode() & 0o111 != 0 {
+                        empty_vec.push(file_name);
                     }
-                } else {
-                    None
                 }
-            } else {
-                None
             }
-        })
-        .collect()
+        }
+    }
+    empty_vec.iter().map(PathBuf::from).collect()
 }
 
 fn is_elf(path: &str) -> io::Result<bool> {
