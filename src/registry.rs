@@ -1,6 +1,7 @@
 //unPack ver 0.0.1
 
 use colored::Colorize;
+use core::clone::Clone;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Debug, Display};
@@ -10,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq)]
 pub struct UninPackage {
     pub name: String,
     pub paths: Vec<PathBuf>,
@@ -25,6 +26,16 @@ impl Display for UninPackage {
             "\tName: {}\n\tPaths: {:?}\n\tChange Date: {}\n",
             self.name, self.paths, self.change_date
         )
+    }
+}
+impl Clone for UninPackage {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            paths: self.paths.clone(),
+            change_date: self.change_date.clone(),
+            updated: self.updated,
+        }
     }
 }
 impl UninPackage {
@@ -93,7 +104,7 @@ pub fn time_read() -> PrimitiveDateTime {
     x
 }
 
-pub fn registry_write(package: &UninPackage) {
+pub fn registry_write(package: &UninPackage, print_console: bool) {
     let registry_path = format!(
         "{}/.unin/registry/registry.json",
         std::env::var("HOME").unwrap()
@@ -134,15 +145,15 @@ pub fn registry_write(package: &UninPackage) {
     serde_json::to_writer(&mut file, &packages).unwrap();
     file.flush().unwrap();
 
-    if is_new {
+    if is_new && print_console {
         println!(
             "Registry for entry {} created successfully!",
-            package_name.green()
+            package_name.green().underline()
         );
-    } else {
+    } else if !is_new && print_console{
         println!(
             "Registry for entry {} updated successfully!",
-            package_name.green()
+            package_name.green().underline()
         );
     }
 }
@@ -244,15 +255,45 @@ pub fn temp_test() {
     let _x: UninPackage = UninPackage {
         name: String::from("dev"),
         paths: vec![PathBuf::from("/root/ad"), PathBuf::from("/root/da")],
-        change_date: String::from(time_create()),
+        change_date: time_create(),
         updated: false,
     };
-    let _lol = get_registry();
+    get_registry();
 }
 pub fn return_registry_path() -> PathBuf {
+    PathBuf::from(format!(
+        "{}/.unin/registry/registry.json",
+        std::env::var("HOME").unwrap()
+    ))
+}
+
+pub fn update_check_registry() {
     let registry_path = PathBuf::from(format!(
         "{}/.unin/registry/registry.json",
         std::env::var("HOME").unwrap()
     ));
-    registry_path
+    if !registry_exists() {
+        println!("{}", "Registry couldn't be found nor created. Consider creating it manually at ~/.unin/registry/registry.json".red());
+    }
+    let contents =
+        fs::read_to_string(registry_path).expect("Something went wrong reading the file");
+    let packages: Vec<UninPackage> = serde_json::from_str(&contents).unwrap();
+    for package in packages {
+        let mut new_paths: Vec<String> = Vec::new();
+        package.paths.iter().for_each(|path| {
+            if path.exists() {
+                new_paths.push(path.to_str().unwrap().to_string());
+            } else {
+                println!("{}", "The binaries of this registry entry are missing. Do you want to remove it?".red());
+                registry_uninstall(package.name.clone())
+            }
+        });
+        let new_package = UninPackage {
+            name: package.name.clone(),
+            paths: new_paths.iter().map(PathBuf::from).collect(),
+            change_date: package.change_date.clone(),
+            updated: package.updated,
+        };
+        registry_write(&new_package, false);
+    }
 }

@@ -23,7 +23,7 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
         full_path = String::from(directory.absolutize().unwrap().to_str().unwrap());
     }
 
-    println!("Now compiling {}", full_path.yellow()); //prints a start message
+    println!("Now compiling {}", full_path.yellow().underline()); //prints a start message
 
     let mut child = Command::new("cargo")
         .args(["build", "--release", "--color", "always"])
@@ -76,7 +76,6 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
         println!("Skipping the installation as --noinstall was given.");
         return;
     }
-
     let _ = install_to_bin(binaries.clone()); //installs the dropped binaries AND REGISTERS THEM
     println!(
         //prints an end message

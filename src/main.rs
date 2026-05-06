@@ -14,6 +14,8 @@ pub mod zig;
 use crate::tools::*;
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
+use gag::Gag;
+use std::io::stdout;
 use std::{
     io::{self, Write},
     path::PathBuf,
@@ -92,6 +94,9 @@ enum SetupMode {
 
 fn main() {
     let cli = Cli::parse();
+
+    //update and check registry
+    registry::update_check_registry();
 
     if cli.clean.is_some() {
         println!(

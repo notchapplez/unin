@@ -194,7 +194,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
             change_date: time_create(),
             updated: false,
         };
-        registry_write(&temp_binary);
+        registry_write(&temp_binary, true);
         println!("\n{}", temp_binary);
     }
     println!("B")

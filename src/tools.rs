@@ -8,13 +8,13 @@ use crate::haskell::compile_haskell;
 use colored::Colorize;
 use path_absolutize::Absolutize;
 use std::collections::HashSet;
-use std::hash::Hash;
-use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use std::fs::File;
+use std::hash::Hash;
 use std::io::Read;
+use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use unin_bin::{UninPackage, registry_write, time_create};
 
-type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>;
+type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>; //define UniversalResult
 
 #[derive(Debug)]
 struct CustomError(Vec<String>);
@@ -86,15 +86,13 @@ pub fn detect_clean(directory: String) {
 ///universal finder
 pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBuf> {
     let temp = directory.canonicalize().unwrap();
-    let mut paths: Vec<PathBuf> = vec![];
-    fs::read_dir(temp).unwrap().for_each(|entry| {
-        let path = entry.unwrap().path();
-        paths.push(path);
-    });
 
-    println!("Paths: {:?}", paths.clone());
+    let all_entries: Vec<PathBuf> = fs::read_dir(temp)
+        .unwrap()
+        .filter_map(|res| res.ok().map(|e| e.path()))
+        .collect();
 
-    find_executable_file_in_the_goddamn_end_folder(paths.clone())
+    find_executable_files(all_entries)
 }
 
 pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
@@ -109,6 +107,7 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
             .arg("-f")
             .output()?
             .status;
+
         let status = Command::new("sudo")
             .arg("cp")
             .arg(&binary)
@@ -163,7 +162,7 @@ pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
             change_date: time_create(),
             updated: false,
         };
-        registry_write(&temp_binary);
+        registry_write(&temp_binary, true);
         println!("\n{}", temp_binary);
     }
     if errors.is_empty() {
@@ -176,21 +175,33 @@ pub fn sudo() -> bool {
     unsafe { libc::geteuid() == 0 }
 }
 
-fn find_executable_file_in_the_goddamn_end_folder(files: Vec<PathBuf>) -> Vec<PathBuf> {
-    let mut empty_vec: Vec<String> = Vec::new();
-    for file in files {
-        let file_name = file.file_name().and_then(|s| s.to_str().map(|s| s.to_owned())).unwrap(); //war crime committed /j
-        if !file_name.contains(".so") {
-            if is_elf_quiet(file.to_str().unwrap()) {
-                if let Ok(metadata) = fs::metadata(&file) {
-                    if metadata.permissions().mode() & 0o111 != 0 {
-                        empty_vec.push(file_name);
-                    }
+fn find_executable_files(files: Vec<PathBuf>) -> Vec<PathBuf> {
+    files
+        .into_iter()
+        .filter(|file| {
+            // 1. Skip directories (this fixes the 'cp' errors)
+            if file.is_dir() { return false; }
+
+            // 2. Hard-deny known non-binary extensions
+            if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
+                let blacklist = ["so", "d", "rlib", "lock", "txt", "fingerprint"];
+                if blacklist.contains(&ext) { return false; }
+            }
+
+            // 3. Skip hidden files (like .cargo-lock)
+            if file.file_name().and_then(|n| n.to_str()).map_or(false, |n| n.starts_with('.')) {
+                return false;
+            }
+
+            // 4. Check ELF and Permissions
+            if is_elf_quiet(&file.to_string_lossy()) {
+                if let Ok(metadata) = fs::metadata(file) {
+                    return metadata.permissions().mode() & 0o111 != 0;
                 }
             }
-        }
-    }
-    empty_vec.iter().map(PathBuf::from).collect()
+            false
+        })
+        .collect()
 }
 
 fn is_elf(path: &str) -> io::Result<bool> {
