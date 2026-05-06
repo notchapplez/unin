@@ -180,16 +180,24 @@ fn find_executable_files(files: Vec<PathBuf>) -> Vec<PathBuf> {
         .into_iter()
         .filter(|file| {
             // 1. Skip directories (this fixes the 'cp' errors)
-            if file.is_dir() { return false; }
+            if file.is_dir() {
+                return false;
+            }
 
             // 2. Hard-deny known non-binary extensions
             if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
                 let blacklist = ["so", "d", "rlib", "lock", "txt", "fingerprint"];
-                if blacklist.contains(&ext) { return false; }
+                if blacklist.contains(&ext) {
+                    return false;
+                }
             }
 
             // 3. Skip hidden files (like .cargo-lock)
-            if file.file_name().and_then(|n| n.to_str()).map_or(false, |n| n.starts_with('.')) {
+            if file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map_or(false, |n| n.starts_with('.'))
+            {
                 return false;
             }
 

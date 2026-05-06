@@ -18,8 +18,10 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     //defines the function
     if directory == *"." {
         let directory = env::current_dir().unwrap();
+        let _ = full_path; //to satisfy clippy
         full_path = String::from(directory.absolutize().unwrap().to_str().unwrap());
     } else {
+        let _ = full_path; //to satisfy clippy
         full_path = String::from(directory.absolutize().unwrap().to_str().unwrap());
     }
 

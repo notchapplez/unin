@@ -83,14 +83,13 @@ pub fn time_create() -> String {
             .replace_nanosecond(0)
             .unwrap(),
     );
-    let fucking_string = PrimitiveDateTime::to_string(&primitive_now_utc);
-    format!("{}", fucking_string)
+    PrimitiveDateTime::to_string(&primitive_now_utc)
 }
 
 pub fn time_read() -> PrimitiveDateTime {
     let registry_path = PathBuf::from(format!(
         "{}/.unin/registry/",
-        String::from(std::env::var("HOME").unwrap_or_else(|_| "/root/".to_string()))
+        std::env::var("HOME").unwrap_or_else(|_| "/root/".to_string())
     ));
     let registry_file = PathBuf::from(format!("{}/registry.json", registry_path.to_str().unwrap()));
     let data = fs::read_to_string(registry_file).unwrap();
@@ -100,7 +99,7 @@ pub fn time_read() -> PrimitiveDateTime {
     let x: PrimitiveDateTime =
         PrimitiveDateTime::parse(&time_string, &time::format_description::well_known::Rfc3339)
             .unwrap();
-    println!("{}", String::from(x.to_string()));
+    println!("{}", x);
     x
 }
 
@@ -150,7 +149,7 @@ pub fn registry_write(package: &UninPackage, print_console: bool) {
             "Registry for entry {} created successfully!",
             package_name.green().underline()
         );
-    } else if !is_new && print_console{
+    } else if !is_new && print_console {
         println!(
             "Registry for entry {} updated successfully!",
             package_name.green().underline()
@@ -216,10 +215,10 @@ pub fn registry_uninstall(package_name: String) {
     }
 
     let delete_job = std::process::Command::new("sudo")
-        .arg("rm".to_string())
+        .arg("rm")
         .arg("-f")
         .arg(
-            &package_remove_queued.clone().unwrap().paths[0]
+            package_remove_queued.clone().unwrap().paths[0]
                 .to_str()
                 .unwrap(),
         )
@@ -284,7 +283,11 @@ pub fn update_check_registry() {
             if path.exists() {
                 new_paths.push(path.to_str().unwrap().to_string());
             } else {
-                println!("{}", "The binaries of this registry entry are missing. Do you want to remove it?".red());
+                println!(
+                    "{}",
+                    "The binaries of this registry entry are missing. Do you want to remove it?"
+                        .red()
+                );
                 registry_uninstall(package.name.clone())
             }
         });

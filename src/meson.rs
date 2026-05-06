@@ -1,5 +1,5 @@
 use crate::logging::log_to_file;
-use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
+use crate::tools::find_files_because_the_user_is_too_lazy;
 use colored::Colorize;
 use rand::RngExt;
 use std::fs;
@@ -10,7 +10,7 @@ use unin_bin::{UninPackage, registry_write, time_create};
 
 pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let mut setup = Command::new("meson")
-        .args(&["setup", "build"]) //build is the path to the build directory!
+        .args(["setup", "build"]) //build is the path to the build directory!
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .current_dir(directory.clone())
@@ -20,24 +20,22 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let reader = BufReader::new(stdout);
     let mut full_content = String::new();
     let mut has_error = false;
-    for line in reader.lines() {
-        if let Ok(content) = line {
-            let raw_content = content.clone();
-            let shc = content.clone();
-            if shc.contains("ERROR") {
-                has_error = true;
-                print!("\r\x1B[K{}", shc.red().underline().bold());
-                std::io::stdout().flush().unwrap();
-                full_content.push_str(format!("{}\n", &raw_content.clone()).as_str());
-                continue;
-            }
-            print!("\r\x1B[K{}", content.purple().bold());
+    for line in reader.lines().map_while(Result::ok) {
+        let raw_content = line.clone();
+        let shc = line.clone();
+        if shc.contains("ERROR") {
+            has_error = true;
+            print!("\r\x1B[K{}", shc.red().underline().bold());
             std::io::stdout().flush().unwrap();
-            let mut rng = rand::rng();
-            let random_delay: u64 = rng.random_range(30..=60);
-            std::thread::sleep(std::time::Duration::from_millis(random_delay));
             full_content.push_str(format!("{}\n", &raw_content.clone()).as_str());
+            continue;
         }
+        print!("\r\x1B[K{}", line.purple().bold());
+        std::io::stdout().flush().unwrap();
+        let mut rng = rand::rng();
+        let random_delay: u64 = rng.random_range(30..=60);
+        std::thread::sleep(std::time::Duration::from_millis(random_delay));
+        full_content.push_str(format!("{}\n", &raw_content.clone()).as_str());
     }
     let waiter = setup.unwrap().wait().unwrap();
 
@@ -66,7 +64,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
 
     let cpu_cores = num_cpus::get();
     let mut child = Command::new("ninja")
-        .args(&["-C", "build", "-j", &cpu_cores.to_string()])
+        .args(["-C", "build", "-j", &cpu_cores.to_string()])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .current_dir(directory.clone())
@@ -78,18 +76,16 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let reader = BufReader::new(stdout);
     let mut content_full = String::new();
     let mut has_error = false;
-    for line in reader.lines() {
-        if let Ok(content) = line {
-            print!("\r\x1B[K{}", content.purple().bold());
+    for line in reader.lines().map_while(Result::ok) {
+            print!("\r\x1B[K{}", line.purple().bold());
             std::io::stdout().flush().unwrap();
-            if content.contains("error:") {
+            if line.contains("error:") {
                 has_error = true;
-                content_full.push_str(content.as_str());
+                content_full.push_str(line.as_str());
                 continue;
             }
-            content_full.push_str(content.as_str());
+            content_full.push_str(line.as_str());
             continue;
-        }
     }
     let _waiter = child.unwrap().wait().unwrap();
     if has_error {
@@ -137,21 +133,19 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let reader = BufReader::new(stdout);
     let mut full_content = String::new();
     let mut has_error = false;
-    for line in reader.lines() {
-        if let Ok(content) = line {
-            let coc = content.clone();
-            if content.contains("error:")
-                || content.contains("fatal error")
-                || content.contains("failed")
-            {
-                full_content.push_str(format!("{}\n", &coc).as_str());
-                has_error = true
-            } else {
-                print!("\r\x1B[K{}", content.purple().bold());
-                std::io::stdout().flush().unwrap();
-                std::thread::sleep(std::time::Duration::from_millis(10));
-                full_content.push_str(format!("{}\n", &coc).as_str());
-            }
+    for line in reader.lines().map_while(Result::ok) {
+        let coc = line.clone();
+        if line.contains("error:")
+            || line.contains("fatal error")
+            || line.contains("failed")
+        {
+            full_content.push_str(format!("{}\n", &coc).as_str());
+            has_error = true
+        } else {
+            print!("\r\x1B[K{}", line.purple().bold());
+            std::io::stdout().flush().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            full_content.push_str(format!("{}\n", &coc).as_str());
         }
     }
 

@@ -14,8 +14,6 @@ pub mod zig;
 use crate::tools::*;
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
-use gag::Gag;
-use std::io::stdout;
 use std::{
     io::{self, Write},
     path::PathBuf,

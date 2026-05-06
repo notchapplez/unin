@@ -1,17 +1,13 @@
 use colored::Colorize;
 use std::io;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
-    let config_file_path = PathBuf::from(format!(
-        "{}/project.cabal",
-        directory.clone().to_str().unwrap()
-    ));
-    let mut updater = Command::new("cabal")
+    let updater = Command::new("cabal")
         .arg("update")
         .current_dir(directory.clone())
         .stdout(std::process::Stdio::piped())
