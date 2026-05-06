@@ -19,9 +19,7 @@ pub fn build_zig(directory: PathBuf, noinstall: bool) {
     let stderr = zig_build_process.stderr.take().unwrap();
     let reader = std::io::BufReader::new(stderr);
     for line in reader.lines() {
-        if let Ok(actual_line) = line {
-            print!("\r\x1B[K{}", actual_line.bold().purple());
-        }
+        print!("\r\x1B[K{}", line.unwrap_or("".to_string()).bold().purple());
     }
 
     let _waiter = &zig_build_process

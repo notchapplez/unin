@@ -77,15 +77,15 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let mut content_full = String::new();
     let mut has_error = false;
     for line in reader.lines().map_while(Result::ok) {
-            print!("\r\x1B[K{}", line.purple().bold());
-            std::io::stdout().flush().unwrap();
-            if line.contains("error:") {
-                has_error = true;
-                content_full.push_str(line.as_str());
-                continue;
-            }
+        print!("\r\x1B[K{}", line.purple().bold());
+        std::io::stdout().flush().unwrap();
+        if line.contains("error:") {
+            has_error = true;
             content_full.push_str(line.as_str());
             continue;
+        }
+        content_full.push_str(line.as_str());
+        continue;
     }
     let _waiter = child.unwrap().wait().unwrap();
     if has_error {
@@ -135,10 +135,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     let mut has_error = false;
     for line in reader.lines().map_while(Result::ok) {
         let coc = line.clone();
-        if line.contains("error:")
-            || line.contains("fatal error")
-            || line.contains("failed")
-        {
+        if line.contains("error:") || line.contains("fatal error") || line.contains("failed") {
             full_content.push_str(format!("{}\n", &coc).as_str());
             has_error = true
         } else {
