@@ -1,5 +1,5 @@
 use crate::{
-    cmake::compile_cmake, confidcure::confihgure, make::build_make, meson::start_meson,
+    cmake::compile_cmake, confidcure::init_build, make::build_make, meson::start_meson,
     rust::compile_rust, zig::build_zig,
 };
 
@@ -45,7 +45,7 @@ pub fn detect(path: String, noinstall: bool) {
         let os_filename = entry.file_name();
         let filename = os_filename.into_string().unwrap();
         match filename.as_str() {
-            "configure" => confihgure(PathBuf::from(&path), noinstall),
+            "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
             "Makefile" => build_make(PathBuf::from(&path), noinstall),
