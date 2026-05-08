@@ -6,6 +6,10 @@ use std::path::PathBuf;
 use std::process::{Command, exit};
 use dialoguer::console::strip_ansi_codes;
 use unicode_truncate::UnicodeTruncateStr;
+use unin_bin::{registry_write, return_registry_path, time_create, UninPackage};
+use crate::tools::find_files_because_the_user_is_too_lazy;
+use crate::tools::only_unique;
+use libc::user;
 
 pub(crate) fn init_build(path: PathBuf, noinstall: bool) {
     confihgure(path.clone()); //configure
@@ -150,6 +154,79 @@ fn install(path: PathBuf, noinstall: bool) {
 
         read_content.contains("install:") //already returns for me!!!
     };
-    if provides_install(path.clone()) {} //todo!()
+    if !provides_install(path.clone()) {
+        println!("{}{} Do it yourself you lazy sloth!", "Skipping installation".yellow().underline(), " because the Makefile does not provide an install target.".yellow());
+        exit(0)
+    } //todo!()
+
+    let registry_path = return_registry_path();
+    let before_install: Vec<PathBuf> = find_files_because_the_user_is_too_lazy(registry_path.clone());
+
+    let mut make_install_process = Command::new("sudo")
+        .args(["make", "install"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .current_dir(&path)
+        .spawn();
+
+    let stdout = make_install_process.as_mut().unwrap().stdout.take().unwrap();
+    let mut full_stdout = String::new();
+    let mut stdout_has_error = false;
+    let stdout_reader = BufReader::new(stdout);
+    for line in stdout_reader.lines().map_while(Result::ok) {
+        if !line.contains("error:") || line.contains("failed") {
+            print!("\r\x1B[K{}", line.clone().purple());
+            io::stdout().flush().unwrap(); //important: flush stdout as you write to it, obviously
+            full_stdout.push_str(&line.clone());
+            full_stdout.push('\n');
+        } else {
+            stdout_has_error = true;
+            full_stdout.push_str(&line.clone());
+            full_stdout.push('\n');
+            continue;
+        }
+    }
+    let stderr = make_install_process.as_mut().unwrap().stderr.take().unwrap();
+    let stderr_reader = BufReader::new(stderr);
+    let mut stderr_has_error = false;
+    for line in stderr_reader.lines().map_while(Result::ok) {
+        if !line.contains("error:") || line.contains("fuck") {
+            print!("\r\x1B[K{}", line.clone().yellow());
+            io::stdout().flush().unwrap();
+            full_stdout.push_str(&line.clone());
+            full_stdout.push('\n');
+        } else {
+            stderr_has_error = true;
+            full_stdout.push_str(&line.clone());
+            full_stdout.push('\n');
+            continue;
+        }
+    }
+    make_install_process.as_mut().unwrap().wait().unwrap();
+
+    if stdout_has_error || stderr_has_error {
+        println!("The make install process yielded an error. The full output will shown below");
+        println!("{}", full_stdout.as_str().red());
+        exit(0)
+    }
+    let after_install: Vec<PathBuf> = find_files_because_the_user_is_too_lazy(registry_path.clone());
+    let binaries_installed: Vec<PathBuf> = only_unique(&before_install, &after_install);
+
+    println!();
+    println!(
+        "{}",
+        "Installation finished. The following binaries were installed:".yellow().underline()
+    );
+    binaries_installed.iter().for_each(|b| println!("{}", b.to_str().unwrap()));
+    for package in binaries_installed.iter() {
+        let package = UninPackage {
+            name: package.to_str().unwrap_or("").split("/").last().unwrap_or("placeholder").to_string(),
+            paths: vec![package.to_owned()],
+            change_date: time_create(),
+            updated: false,
+        };
+        registry_write(&package, true)
+    }
+
 }
 
