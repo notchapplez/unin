@@ -9,12 +9,11 @@ use unicode_truncate::UnicodeTruncateStr;
 use unin_bin::{registry_write, return_registry_path, time_create, UninPackage};
 use crate::tools::find_files_because_the_user_is_too_lazy;
 use crate::tools::only_unique;
-use libc::user;
 
 pub(crate) fn init_build(path: PathBuf, noinstall: bool) {
     confihgure(path.clone()); //configure
     make(path.clone());
-    //install(path.clone(), noinstall); here
+    install(path.clone(), noinstall);
     exit(0)
 }
 
