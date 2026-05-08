@@ -8,12 +8,13 @@ use dialoguer::console::strip_ansi_codes;
 use unicode_truncate::UnicodeTruncateStr;
 
 pub(crate) fn init_build(path: PathBuf, noinstall: bool) {
-    confihgure(path.clone(), noinstall); //configure
-    make(path.clone(), noinstall);
+    confihgure(path.clone()); //configure
+    make(path.clone());
+    //install(path.clone(), noinstall); here
     exit(0)
 }
 
-fn confihgure(path: PathBuf, noinstall: bool) {
+fn confihgure(path: PathBuf) {
     let mut configure_process = Command::new("sh")
         .args(["./configure", "--prefix=/usr/local"])
         .stdout(std::process::Stdio::piped())
@@ -31,12 +32,12 @@ fn confihgure(path: PathBuf, noinstall: bool) {
             print!("\r\x1B[K{}", line.clone().purple());
             io::stdout().flush().unwrap();
             full_stdout.push_str(&line.clone());
-            full_stdout.push_str("\n");
+            full_stdout.push('\n');
             //append to full_stdout
         } else {
             stdout_has_error = true;
             full_stdout.push_str(&line.clone()); //appe
-            full_stdout.push_str("\n");
+            full_stdout.push('\n');
             //append to full_stdout
             continue;
         }
@@ -51,11 +52,11 @@ fn confihgure(path: PathBuf, noinstall: bool) {
             print!("\r\x1B[K{}", line.clone().yellow());
             io::stdout().flush().unwrap();
             full_stdout.push_str(&line.clone());
-            full_stdout.push_str("\n");
+            full_stdout.push('\n');
         } else {
             stderr_has_error = true;
             full_stdout.push_str(&line.clone());
-            full_stdout.push_str("\n");
+            full_stdout.push('\n');
             continue;
         }
     }
@@ -75,7 +76,7 @@ fn confihgure(path: PathBuf, noinstall: bool) {
     let _waiter = configure_process.as_mut().unwrap().wait().unwrap();
 }
 
-fn make(directory: PathBuf, noinstall: bool) {
+fn make(directory: PathBuf) {
 
     let cols = terminal_size::terminal_size().map(|(width, _)| width.0 as usize - 10).unwrap_or(80); //important ! columns
 
@@ -143,6 +144,12 @@ fn install(path: PathBuf, noinstall: bool) {
             " because of the --noinstall flag.".yellow()
         );
         exit(0)
-    }
+    } /* else */
+    let provides_install: fn(PathBuf) -> bool = move |path: PathBuf| {
+        let read_content = std::fs::read_to_string(path).unwrap();
+
+        read_content.contains("install:") //already returns for me!!!
+    };
+    if provides_install(path.clone()) {} //todo!()
 }
 
