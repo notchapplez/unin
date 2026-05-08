@@ -188,7 +188,6 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         registry_write(&temp_binary, true);
         println!("\n{}", temp_binary);
     }
-    println!("B")
 }
 pub fn clean(directory: PathBuf) {
     if !directory.exists() {

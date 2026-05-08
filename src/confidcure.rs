@@ -2,6 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::Command;
 use colored::Colorize;
+use crate::logging::log_to_file;
 
 fn confihgure(path: PathBuf, noinstall: bool) {
     //prefix=/usr/local
@@ -40,6 +41,12 @@ fn confihgure(path: PathBuf, noinstall: bool) {
 			continue
 		}
 	}
+	log_to_file(path.clone(), "configure".to_string(), full_stdout.clone());
+	println!(
+        "{}",
+        "The configuration process has finished. The full output is available in {}.".yellow()
+            .underline()
+	);
 	if stdout_has_error || stderr_has_error {
 		println!("The configuration process yielded an error. The full output will shown below");
 		println!("{}", full_stdout.as_str().red());

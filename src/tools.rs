@@ -53,9 +53,10 @@ pub fn detect(path: String, noinstall: bool) {
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
             "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall), //wth is this
-            _ => {}
+            _ => { }
         }
     }
+    println!("{}", "No build configuration files found. Exiting...".yellow())
 }
 pub fn detect_clean(directory: String) {
     let mut path = PathBuf::new();
@@ -186,6 +187,11 @@ fn find_executable_files(files: Vec<PathBuf>) -> Vec<PathBuf> {
             if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
                 let blacklist = ["so", "d", "rlib", "lock", "txt", "fingerprint"];
                 if blacklist.contains(&ext) {
+                    return false;
+                }
+            }
+            if let Some(content) = file.file_name() {
+                if content.to_str().unwrap().contains(".so") {
                     return false;
                 }
             }

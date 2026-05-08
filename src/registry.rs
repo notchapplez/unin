@@ -200,46 +200,68 @@ pub fn registry_uninstall(package_name: String) {
     let registry_json: Value =
         serde_json::from_str(&fs::read_to_string(registry_path.clone()).unwrap()).unwrap();
     let mut packages: Vec<UninPackage> = serde_json::from_value(registry_json).unwrap();
-    let package_remove_queued = packages
-        .clone()
-        .into_iter()
-        .find(|p| p.name == package_name);
-    println!("\n{}", &package_remove_queued.clone().unwrap());
+
+    let pkg = match packages.iter().find(|p| p.name == package_name) {
+        Some(p) => p,
+        None => {
+            eprintln!("No package named '{}' in registry", package_name);
+            return;
+        }
+    };
+
+    println!("\n{}", pkg);
 
     let confirmation = dialoguer::Confirm::new()
         .with_prompt("Are you sure you want to delete this application?")
         .interact()
         .unwrap();
     if !confirmation {
-        exit(0)
+        return;
     }
 
-    let delete_job = std::process::Command::new("sudo")
+    // Work on a mutable copy for removal
+    let mut remaining = packages.clone();
+
+    let path = match pkg.paths.first() {
+        Some(p) => p,
+        None => {
+            eprintln!("Package '{}' has no installed paths", pkg.name);
+            let ask = dialoguer::Confirm::new()
+                .with_prompt("Do you want to delete the entry anyway?")
+                .interact()
+                .unwrap();
+            if ask {
+                remaining.retain(|p| p.name != pkg.name);
+                let _ = fs::write(registry_path, serde_json::to_string(&remaining).unwrap());
+                println!("Registry entry for {} deleted", package_name);
+            }
+            return;
+        }
+    };
+
+    let path_str = path.to_str().unwrap_or_else(|| {
+        eprintln!("Path is not valid UTF-8");
+        std::process::exit(1);
+    });
+
+    let delete_status = std::process::Command::new("sudo")
         .arg("rm")
         .arg("-f")
-        .arg(
-            package_remove_queued.clone().unwrap().paths[0]
-                .to_str()
-                .unwrap(),
-        )
+        .arg(path_str)
         .output()
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Failed to delete the file: {}", e))
         .status;
 
-    if !delete_job.success() {
-        println!(
-            "Failed to delete the file for {}",
-            package_remove_queued.clone().unwrap().name
-        );
+    if !delete_status.success() {
+        println!("Failed to delete the file for {}", pkg.name);
         let confirmation = dialoguer::Confirm::new()
             .with_prompt("Do you want to delete the registry entry anyway?")
             .interact()
             .unwrap();
         if confirmation {
-            packages.retain(|p| p.name != package_name);
-            let _ = fs::write(registry_path, serde_json::to_string(&packages).unwrap());
+            remaining.retain(|p| p.name != package_name);
+            let _ = fs::write(registry_path, serde_json::to_string(&remaining).unwrap());
             println!("Registry entry for {} deleted", package_name);
-            exit(0)
         } else {
             println!("Aborting");
         }
@@ -249,6 +271,7 @@ pub fn registry_uninstall(package_name: String) {
         println!("Registry entry for {} deleted", package_name);
     }
 }
+
 
 pub fn temp_test() {
     let _x: UninPackage = UninPackage {
