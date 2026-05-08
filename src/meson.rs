@@ -26,7 +26,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         if shc.contains("ERROR") {
             has_error = true;
             print!("\r\x1B[K{}", shc.red().underline().bold());
-            std::io::stdout().flush().unwrap();
+            std::io::stdout().flush().unwrap(); //FLUSH THE STDOUT
             full_content.push_str(format!("{}\n", &raw_content.clone()).as_str());
             continue;
         }

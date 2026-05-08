@@ -272,7 +272,6 @@ pub fn registry_uninstall(package_name: String) {
     }
 }
 
-
 pub fn temp_test() {
     let _x: UninPackage = UninPackage {
         name: String::from("dev"),
@@ -314,6 +313,25 @@ pub fn update_check_registry() {
                 registry_uninstall(package.name.clone())
             }
         });
+
+        if package.paths.is_empty() {
+            let confirmation = dialoguer::Confirm::new()
+                .with_prompt(format!(
+                    "{}",
+                    "The binaries of this registry entry are missing. Do you want to remove it?"
+                        .red()
+                ))
+                .interact()
+                .unwrap();
+
+            if !confirmation {
+                exit(0);
+                unreachable!()
+            }
+            //on case of confirmation also unreachable!()
+            registry_uninstall(package.name.clone());
+        }
+
         let new_package = UninPackage {
             name: package.name.clone(),
             paths: new_paths.iter().map(PathBuf::from).collect(),

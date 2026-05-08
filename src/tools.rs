@@ -53,10 +53,13 @@ pub fn detect(path: String, noinstall: bool) {
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
             "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall), //wth is this
-            _ => { }
+            _ => {}
         }
     }
-    println!("{}", "No build configuration files found. Exiting...".yellow())
+    println!(
+        "{}",
+        "No build configuration files found. Exiting...".yellow()
+    )
 }
 pub fn detect_clean(directory: String) {
     let mut path = PathBuf::new();
