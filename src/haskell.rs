@@ -39,6 +39,7 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
             || line.contains("Downloading")
             || line.contains("Resolving")
             || line.contains("Completed")
+            || line.contains("Installing")
         {
             print!("\r\x1B[K{}", line);
             io::stdout().flush().unwrap();
@@ -47,7 +48,7 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
         }
         print!("\r\x1B[K{}", "Debug".underline());
         io::stdout().flush().unwrap();
-        transmitter.send(line.to_string()).unwrap();
+        transmitter.send(line.to_string()).unwrap(); //you send from the transmitter to the receiver
     }
 
     let stderr = precompile_deps.as_mut().unwrap().stderr.take().unwrap();

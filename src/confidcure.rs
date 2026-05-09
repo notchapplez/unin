@@ -214,7 +214,7 @@ fn install(path: PathBuf, noinstall: bool) {
     println!();
     println!(
         "{}",
-        "Installation finished. The following binaries were installed:".yellow().underline()
+        "Installation finished. The following binaries were installed, and will be written to the registry:".yellow().underline()
     );
     binaries_installed.iter().for_each(|b| println!("{}", b.to_str().unwrap()));
     for package in binaries_installed.iter() {
