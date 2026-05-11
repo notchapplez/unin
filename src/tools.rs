@@ -40,11 +40,27 @@ pub fn detect(path: String, noinstall: bool) {
         new_path.clear();
         new_path.push(&path);
     }
-    for matching_file in fs::read_dir(&new_path).unwrap() {
-        let entry = matching_file.unwrap();
-        let os_filename = entry.file_name();
-        let filename = os_filename.into_string().unwrap();
-        match filename.as_str() {
+    let entries: HashSet<String> = fs::read_dir(&new_path)
+        .unwrap()
+        .filter_map(|res| res.ok())
+        .map(|e| e.file_name().into_string().unwrap_or_default())
+        .collect();
+
+    let priorities = [
+        "configure",
+        "CMakeLists.txt",
+        "meson.build",
+        "Cargo.toml",
+        "build.zig",
+        "go.mod",
+        "Makefile",
+        "cabal.project",
+    ];
+
+    let detected_file = priorities.iter().find(|&&f| entries.contains(f));
+
+    if let Some(filename) = detected_file {
+        match *filename {
             "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
@@ -52,14 +68,12 @@ pub fn detect(path: String, noinstall: bool) {
             "build.zig" => build_zig(PathBuf::from(&path), noinstall),
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
-            "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall), //wth is this
-            _ => {}
+            "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall),
+            _ => unreachable!(),
         }
+    } else {
+        println!("No recognized build system found.");
     }
-    println!(
-        "{}",
-        "No build configuration files found. Exiting...".yellow()
-    )
 }
 pub fn detect_clean(directory: String) {
     let mut path = PathBuf::new();
