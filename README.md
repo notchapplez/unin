@@ -40,4 +40,4 @@ My beautiful commit graph (credits to hackatime-heatmap.shymike.dev)
 ##### • dialoguer
 
 ### What I learned
-####I learned how to use BufReaders, how to make my code a bit cleaner, how to implement OOP in my program, that not every build system likes me, and that I love Rust.
+#### I learned how to use BufReaders, how to make my code a bit cleaner, how to implement OOP in my program, that not every build system likes me, and that I love Rust.
