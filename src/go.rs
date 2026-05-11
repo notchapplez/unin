@@ -3,6 +3,8 @@ use colored::Colorize;
 use std::path::PathBuf;
 use std::process::exit;
 use std::{fs, io};
+use duct::cmd;
+use serde::de::Unexpected::Str;
 
 pub fn compile_go(directory: PathBuf, noinstall: bool) {
     use std::io::{BufRead, BufReader, Write};
@@ -18,6 +20,34 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
         .spawn()
         .expect("spawn failed");
 
+    let cmdchild = cmd!("go", "build", "-o", "unin_built_temp/")
+        .dir(&directory)
+        .stderr_to_stdout();
+
+    let merged_out = cmdchild.reader().unwrap();
+    let reader = BufReader::new(merged_out);
+    let mut has_error = false;
+    let mut merged_out = String::new();
+    for (mut line) in reader.lines() {
+        if !line.as_mut().unwrap().contains("error") && !line.as_mut().unwrap().contains("failed") {
+            print!("\r\x1B[K{}", line.as_mut().unwrap().purple());
+            has_error = true;
+            merged_out.push_str(&line.unwrap());
+            merged_out.push('\n');
+            io::stdout().flush().unwrap();
+        } else {
+            has_error = true;
+            print!("\r\x1B[K{}", line.as_mut().unwrap().red());
+            merged_out.push_str(&line.as_mut().unwrap());
+            merged_out.push('\n');
+            thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+    if has_error {
+        println!("The go build process yielded an error. The full output will shown below");
+        println!("{}", merged_out.as_str().red());
+    }
+
     let stdout = child.stdout.take().expect("no stdout");
     let stderr = child.stderr.take().expect("no stderr");
 
@@ -29,7 +59,7 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
         for line in reader.lines() {
             match line {
                 Ok(l) => {
-                    eprintln!("{}", l);
+                    eprintln!("{}", l.red());
                     let _ = tx1.send((l, true));
                 }
                 Err(_) => break,

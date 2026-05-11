@@ -4,7 +4,7 @@ use crate::tools::only_unique;
 use colored::Colorize;
 use dialoguer::console::strip_ansi_codes;
 use std::io;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{stdout, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::exit;
 use duct::cmd;
@@ -20,26 +20,33 @@ pub(crate) fn init_build(path: PathBuf, noinstall: bool) {
 }
 
 fn confihgure(path: PathBuf) {
-    let confi = cmd!(&path, "--prefix=/usr/local")
-        .dir(&path)
-        .stderr_to_stdout();
+    let configure_path = PathBuf::from(format!("{}/configure", path.to_str().unwrap()));
 
-    let stdout = confi.reader().unwrap_or_else(|e| panic!("Failed to read stdout: {}", e) );
+    let output = cmd!(&configure_path, "--prefix=/usr/local")
+        .dir(&path)
+        .stderr_to_stdout()
+        .read()
+        .expect("Failed to read stdout");
+
+
     let mut full_stdout = String::new();
     let mut stdout_has_error = false;
-    let stdout_reader = BufReader::new(stdout);
-
-    for line in stdout_reader.lines().map_while(Result::ok) {
+    for line in output.lines() {
         if line.contains("configure: error:") || line.contains("error:") || line.contains("failed") {
             stdout_has_error = true;
+            full_stdout.push_str(&line);
+            full_stdout.push('\n');
+            continue;
+        } else {
+            full_stdout.push_str(&line);
+            full_stdout.push('\n');
+
+            println!("{}", line);
+            io::stdout().flush().unwrap();
         }
-
-        full_stdout.push_str(&line);
-        full_stdout.push('\n');
-
-        print!("\r\x1B[K{}", line.purple());
-        io::stdout().flush().unwrap();
     }
+    print!("\r\x1B[K");
+    stdout().flush().unwrap();
     log_to_file(PathBuf::from(path), "configure".to_string(), full_stdout.clone());
     println!();
     println!(
@@ -49,7 +56,7 @@ fn confihgure(path: PathBuf) {
 	);
 
     if stdout_has_error {
-        println!("The configuration process yielded an error. The full output will shown below");
+        println!("\nThe configuration process yielded an error. The full output will shown below");
         println!("{}", full_stdout.as_str().red());
     }
 }
@@ -86,6 +93,8 @@ fn make(directory: PathBuf) {
             continue;
         }
     }
+    print!("\r\x1B[K");
+    io::stdout().flush().unwrap();
 
     if stdout_has_error {
         println!("The make process yielded an error. The full output will shown below");
