@@ -31,3 +31,13 @@ My beautiful commit graph (credits to hackatime-heatmap.shymike.dev)
         <img alt="Hackatime activity heatmap" src="https://heatmap.shymike.dev?id=notchapplez&timezone=Europe%2FAmsterdam&labels=true&theme=catppuccin_light">
     </picture>
 </a>
+
+## Tech Stack
+#### -Rust (including .toml)
+#### -Main packages simplifying my coding experience:
+##### • serde-json
+##### • colored
+##### • dialoguer
+
+### What I learned
+#### I learned how to use BufReaders, how to make my code a bit cleaner, how to implement OOP in my program, that not every build system likes me, and that I love Rust.
