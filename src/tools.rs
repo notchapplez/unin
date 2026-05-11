@@ -193,8 +193,10 @@ fn find_executable_files(files: Vec<PathBuf>) -> Vec<PathBuf> {
                     return false;
                 }
             }
-            if let Some(content) = file.file_name() && content.to_str().unwrap().contains(".so") {
-                    return false;
+            if let Some(content) = file.file_name()
+                && content.to_str().unwrap().contains(".so")
+            {
+                return false;
             }
 
             if matches!(file.file_name().and_then(|n| n.to_str()), Some(n) if n.starts_with('.')) {

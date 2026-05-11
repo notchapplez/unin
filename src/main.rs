@@ -1,6 +1,7 @@
 pub mod cmake;
 mod comms;
 mod confidcure;
+mod gleam;
 mod go;
 mod haskell;
 pub mod installer;

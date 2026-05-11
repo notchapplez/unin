@@ -3,6 +3,7 @@ use crate::logging::log_to_file;
 use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
 use dialoguer::{Confirm, Input};
+use duct::cmd;
 use regex::Regex;
 use std::{
     fs as filesystem,
@@ -12,6 +13,8 @@ use std::{
     thread as sleeping,
     time::Duration,
 };
+use unin_bin::{UninPackage, registry_write, time_create};
+
 pub fn compile_cmake(directory: PathBuf, noinstall: bool) {
     //defines the function
     let build_dir: PathBuf = PathBuf::from(format!("{}/build", directory.to_str().unwrap()));
@@ -65,7 +68,7 @@ pub fn compile_cmake(directory: PathBuf, noinstall: bool) {
         ); //notifies the user of the file
 
         let check_user_continue_old_args: bool = Confirm::new() //asks the user if they want to use the old arguments
-            .with_prompt("Do you want to use the already used, cached arguments? (y/n)")
+            .with_prompt("Do you want to use the already used, cached arguments?")
             .interact()
             .unwrap();
 
@@ -124,19 +127,13 @@ fn configure(input_vec: Vec<&str>, directory: &Path) {
     filesystem::create_dir_all(format!("{}/build", directory.to_str().unwrap())).unwrap(); //creates the build directory
 
     let build_dir = format!("{}/build", directory.to_str().unwrap()); //sets the path to the build directory
-    let configure_cmake = commands::Command::new("cmake") //configure command, the core of this function
+    let configure_cmake = commands::Command::new("cmake") //configure command, the core of this function // we are leaving Command here and not using cmd! because that is too tedious
         .current_dir(build_dir)
         .arg("..")
         .arg("-Wno-dev")
         .args(input_vec)
         .output()
         .expect("Failed to configure");
-
-    print!(
-        "{}",
-        String::from_utf8_lossy(&configure_cmake.stdout).yellow()
-    ); //prints stdout
-    eprint!("{}", String::from_utf8_lossy(&configure_cmake.stderr).red()); //prints stderr
 
     if !configure_cmake.status.success() {
         //if the configure command failed
@@ -161,164 +158,134 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
     let cores = num_cpus::get(); //number of cores
     println!("Now compiling {}", directory.to_str().unwrap().yellow()); //Start message
 
-    if noinstall {
-        //if the user only wants to build
-        println!("Skipping install step."); //notifies
-        let mut make_process = commands::Command::new("make") //builds the project
-            .current_dir(build_directory)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("Failed to start make");
+    let main_command = cmd!("cmake", "--build", ".", "-j", cores.to_string()).dir(&build_directory).stderr_to_stdout();
 
-        if let Some(stdout) = make_process.stdout.take() {
-            //If the stdout is not None
-            let buf_reader = BufReader::new(stdout); //opens a BufReader
+    let mut output_merged = String::new();
+    let mut has_error_build = false;
 
-            for line in buf_reader.lines() {
-                //does this for every line in the stdout
-                match line {
-                    //matches the line
-                    Ok(content) => {
-                        //if the line is fine
-                        let content = content.replace('\r', ""); //replaces \r with nothing
-                        println!("{}", content.bold().green()); //prints the content
+    let reader = main_command
+        .reader()
+        .unwrap_or_else(|e| panic!("Failed to read output from cmake build: {}", e));
+
+    let buf_reader = BufReader::new(reader);
+    for line in buf_reader.lines() {
+        match line {
+            Ok(content) => {
+                let is_error = content.contains("error:") ||
+                    content.contains("failed") ||
+                    content.contains("CMake Error");
+
+                if !is_error {
+                    if content.trim_start().starts_with("--") {
+                        let content = content.replace("--", "").replace("\n", "");
+                        let content = content.trim_start();
+                        print!("\r\x1B[K{}", content.bold().purple());
+                        output_merged.push_str(content);
+                        output_merged.push('\n');
+                        std::io::stdout().flush().unwrap();
                     }
-                    Err(e) => println!("Error reading stdout: {}", e), //prints the error if there is one
+
+                } else {
+                    has_error_build = true;
+                    let content = content.replace("\n", "");
+                    output_merged.push_str(content.as_str());
+                    output_merged.push('\n');
+                    continue;
                 }
             }
+            Err(e) => println!("Error reading stdout: {}", e),
         }
-
-        if let Some(stderr) = make_process.stderr.take() {
-            //if the stderr is not None
-            let buf_reader = BufReader::new(stderr); //opens another BufReader
-
-            for line in buf_reader.lines() {
-                //does this for every line in the stderr
-                match line {
-                    //matches the line
-                    Ok(content) => {
-                        //if the line is fine
-                        let content = content.replace('\r', ""); //replaces \r with nothing
-                        eprintln!("{}", content.red()); //prints the error
-                    }
-                    Err(e) => println!("Error reading stderr: {}", e), //if the error has an error, print the error of the error
-                }
-            }
-        }
-
-        let make_process_status = make_process
-            .wait_with_output()
-            .expect("Command isn't running."); //waits for the command to finish
-
-        if make_process_status.status.code() != Option::from(0) {
-            println!("{}", "Compilation failed.".red());
-            exit(1);
-        } else {
-            println!("{}", "Compilation finished successfully.".green());
-        }
-        let out = String::from_utf8_lossy(&make_process_status.stdout).into_owned();
-        let logger = log_to_file(directory.to_path_buf(), "make".to_string(), out);
-        println!(
-            "\nLog for unin step \"make\" build can be found here: {}",
-            logger
-        );
-        drop(logger);
-    } else {
-        //if the user wants to build and install
-        let mut make_process = commands::Command::new("cmake") //starts compiling
-            .arg("--build")
-            .current_dir(&build_directory)
-            .arg(".")
-            .arg("-j")
-            .arg(cores.to_string())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("Failed to start cmake build");
-
-        if let Some(stdout) = make_process.stdout.take() {
-            //if the stdout is not None
-            let buf_reader = BufReader::new(stdout); //opens a BufReader
-
-            for line in buf_reader.lines() {
-                //does this for every line in the stdout
-                match line {
-                    //matches the line
-                    Ok(content) => {
-                        //if the line is fine
-                        if content.contains("Building") {
-                            let mut contented = content.split("[").collect::<Vec<&str>>();
-                            contented[0] = "[";
-                            let contented_string = contented.iter().copied().collect::<String>();
-                            print!("\r\x1B[K{}", contented_string.bold().purple());
-                            std::io::stdout().flush().unwrap();
-                        }
-                    }
-                    Err(e) => println!("Error reading stdout: {}", e), //if there is an error, print the error
-                }
-            }
-        }
-
-        if let Some(stderr) = make_process.stderr.take() {
-            //if the stderr is not None
-            let buf_reader = BufReader::new(stderr); //opens another BufReader
-
-            for line in buf_reader.lines() {
-                //does this for every line in the stderr
-                match line {
-                    //matches the line
-                    Ok(content) => {
-                        //if the line is fine
-                        let content = content.replace('\r', ""); //replaces \r with nothing
-                        eprintln!("{}", content.red()); //prints the error
-                    }
-                    Err(e) => println!("Error reading stderr: {}", e), //if there is an error, print the error
-                }
-            }
-        }
-
-        let waiter = make_process
-            .wait_with_output()
-            .expect("Command isn't running.");
-        let out = String::from_utf8_lossy(&waiter.stdout).into_owned();
-        let logger = log_to_file(directory.to_path_buf(), "make".to_string(), out);
-        println!(
-            "\nLog for unin step \"make\" build can be found here: {}",
-            logger
-        );
-        drop(logger);
-
-        if waiter.status.code() != Option::from(0) {
-            println!("{}", "Compilation failed, not installing.".red());
-            exit(1);
-        }
-
-        let make_install_process = commands::Command::new("sudo") //actually installs the project
-            .current_dir(&build_directory)
-            .arg("cmake")
-            .arg("--install")
-            .arg(".")
-            .spawn()
-            .unwrap();
-
-        let waiter = make_install_process.wait_with_output().unwrap();
-        if waiter.status.code() != Option::from(0) {
-            println!("{}", "Installation failed.".red());
-            exit(1);
-        }
-        let out = String::from_utf8_lossy(&waiter.stdout).into_owned();
-        let logger = log_to_file(directory.to_path_buf(), "install".to_string(), out);
-        println!(
-            "\nLog for unin step \"install\" build can be found here: {}",
-            logger
-        );
-        // I still need to know the binary paths
-        //soooo
-        let binaries: Vec<PathBuf> = find_files_because_the_user_is_too_lazy(build_directory); //this is a Vec<PathBuf>
-        //add these fuckers to the registry
-        let _ = install_to_bin(binaries); //this also registers the binaries to the registry
     }
+    if has_error_build {
+        println!(
+            "{}",
+            "Compilation failed. The full output will be printed below".red()
+        );
+        println!("{}", output_merged);
+    }
+    let logger = log_to_file(
+        directory.to_path_buf(),
+        "make".to_string(),
+        output_merged.clone(),
+    );
+    println!(
+        "\nLog for unin step \"make\" build can be found here: {}",
+        logger
+    );
+    drop(logger);
+    if noinstall {
+        println!("Skipping install step.");
+        println!("The binaries must be somewhere in the build/ directory, go find them");
+        exit(0)
+    }
+
+    let make_install_process = cmd!("cmake", "--install", ".")
+        .dir(&build_directory)
+        .stderr_to_stdout();
+
+    let lines = make_install_process
+        .reader()
+        .unwrap_or_else(|e| panic!("Failed to read output from cmake installer: {}", e));
+    let reader = BufReader::new(lines);
+    let mut output_merged = String::new();
+    let mut has_error_build = false;
+
+    for line in reader.lines().map_while(Result::ok) {
+        let cloned_line = line.clone();
+        let is_error = cloned_line.contains("error:") ||
+            cloned_line.contains("failed") ||
+            cloned_line.contains("CMake Error");
+
+        if !is_error {
+            let cloned_line = cloned_line.replace("\n", "");
+            print!("\r\x1B[K{}", cloned_line.bold().purple());
+            std::io::stdout().flush().unwrap();
+            output_merged.push_str(cloned_line.as_str());
+            output_merged.push('\n');
+            continue;
+        } else {
+            let cloned_line = cloned_line.replace("\n", "");
+            has_error_build = true;
+            output_merged.push_str(cloned_line.as_str());
+            output_merged.push('\n');
+            continue;
+        }
+    }
+    let logger = log_to_file(
+        directory.to_path_buf(),
+        "install".to_string(),
+        output_merged.clone(),
+    );
+    println!(
+        "\nLog for unin step \"install\" build can be found here: {}",
+        logger
+    );
+    if has_error_build {
+        println!(
+            "{}",
+            "Installation failed. The full output will be printed below".red()
+        );
+        println!("{}", output_merged);
+    }
+
+    let binaries: Vec<PathBuf> = find_files_because_the_user_is_too_lazy(build_directory); //this is a Vec<PathBuf> as I declared
+    binaries.iter().for_each(|binary| {
+        let package = UninPackage {
+            name: binary
+                .to_str()
+                .unwrap()
+                .split("/")
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+                .to_string(),
+            paths: vec![binary.clone().to_owned()],
+            change_date: time_create(),
+            updated: false,
+        };
+        registry_write(&package, true);
+    });
+
     exit(0)
 }
 
