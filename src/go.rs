@@ -1,28 +1,18 @@
-use crate::tools::find_files_because_the_user_is_too_lazy;
+use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
 use std::path::PathBuf;
 use std::process::exit;
 use std::{fs, io};
 use duct::cmd;
-use serde::de::Unexpected::Str;
+use std::io::{BufRead, BufReader, Write};
+use std::thread;
 
 pub fn compile_go(directory: PathBuf, noinstall: bool) {
-    use std::io::{BufRead, BufReader, Write};
-    use std::process::{Command, Stdio};
-    use std::sync::mpsc;
-    use std::thread;
-
-    let mut child = Command::new("go")
-        .args(["build", "-o", "unin_built_temp/"]) // don't specify no file for ****'s sake
-        .current_dir(&directory)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn failed");
 
     let cmdchild = cmd!("go", "build", "-o", "unin_built_temp/")
         .dir(&directory)
-        .stderr_to_stdout();
+        .stderr_to_stdout()
+        .unchecked();
 
     let merged_out = cmdchild.reader().unwrap();
     let reader = BufReader::new(merged_out);
@@ -37,61 +27,19 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
             io::stdout().flush().unwrap();
         } else {
             has_error = true;
-            print!("\r\x1B[K{}", line.as_mut().unwrap().red());
-            merged_out.push_str(&line.as_mut().unwrap());
+            merged_out.push_str(line.as_mut().unwrap_or_else(|e| panic!("panic: {}", e)));
             merged_out.push('\n');
             thread::sleep(std::time::Duration::from_millis(100));
         }
     }
     if has_error {
-        println!("The go build process yielded an error. The full output will shown below");
+        print!("\r\x1B[K");
+        println!("{}", "The go build process yielded an error. The full output will shown below.".yellow());
         println!("{}", merged_out.as_str().red());
+        exit(1)
     }
 
-    let stdout = child.stdout.take().expect("no stdout");
-    let stderr = child.stderr.take().expect("no stderr");
-
-    let (tx, rx) = mpsc::channel::<(String, bool)>();
-
-    let tx1 = tx.clone();
-    thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    eprintln!("{}", l.red());
-                    let _ = tx1.send((l, true));
-                }
-                Err(_) => break,
-            }
-        }
-    });
-
-    thread::spawn(move || {
-        let mut out = io::stdout();
-        let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    let _ = writeln!(out, "{}", l);
-                    let _ = out.flush();
-                    let _ = tx.send((l, false));
-                }
-                Err(_) => break,
-            }
-        }
-    });
-
-    while let Ok((line, _is_err)) = rx.recv() {
-        print!("got {}", line);
-        io::stdout().flush().unwrap();
-    }
-
-    let status = child.wait().expect("wait failed");
-    if !status.success() {
-        eprintln!("process exited with {}", status);
-    }
-
+    let test = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));
     if noinstall {
         println!(
             "{}",
@@ -99,7 +47,6 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
                 .yellow()
                 .underline()
         );
-        let test = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));
         println!();
         println!("I found some files, here they are:");
         find_files_because_the_user_is_too_lazy(test)
@@ -107,6 +54,12 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
             .for_each(|x| println!("{}", x.to_str().unwrap()));
         exit(0)
     }
+
+    let installer = install_to_bin(find_files_because_the_user_is_too_lazy(test));
+    if installer.is_err() {
+        println!("Failed to install binaries");
+    }
+
 }
 pub fn clean(directory: PathBuf) {
     let build_dir = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));

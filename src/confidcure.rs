@@ -68,11 +68,11 @@ fn make(directory: PathBuf) {
 
     let num_cpus = num_cpus::get();
 
-    let makey = cmd!("make", "-j", &num_cpus.to_string())
+    let make_process = cmd!("make", "-j", &num_cpus.to_string())
         .dir(&directory)
         .stderr_to_stdout();
 
-    let stdout = makey.reader().unwrap();
+    let stdout = make_process.reader().unwrap();
 
     let mut full_stdout = String::new();
     let mut stdout_has_error = false;
