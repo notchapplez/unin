@@ -103,11 +103,9 @@ pub fn detect_clean(directory: String) {
 }
 ///universal finder
 pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBuf> {
-    println!("Path: {directory:?}");
     let temp = directory.canonicalize().unwrap();
 
-    let all_entries: Vec<PathBuf> = fs::read_dir(temp)
-        .unwrap()
+    let all_entries: Vec<PathBuf> = fs::read_dir(temp).unwrap()
         .filter_map(|res| res.ok().map(|e| e.path()))
         .collect();
 

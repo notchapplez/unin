@@ -8,7 +8,6 @@ use std::io::{stdout, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::exit;
 use duct::cmd;
-use path_absolutize::Absolutize;
 use unicode_truncate::UnicodeTruncateStr;
 use unin_bin::{UninPackage, registry_write, return_registry_path, time_create};
 
@@ -47,7 +46,7 @@ fn confihgure(path: PathBuf) {
     }
     print!("\r\x1B[K");
     stdout().flush().unwrap();
-    log_to_file(PathBuf::from(path), "configure".to_string(), full_stdout.clone());
+    log_to_file(path, "configure".to_string(), full_stdout.clone());
     println!();
     println!(
         "{}",

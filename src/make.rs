@@ -8,9 +8,19 @@ use std::{
     path::PathBuf,
     process::exit,
 };
+use std::io::BufReader;
+use duct::cmd;
 use unin_bin::return_registry_path;
+use unicode_truncate::UnicodeTruncateStr;
+use terminal_size::terminal_size;
+use crate::logging::log_to_file;
 
 pub fn build_make(directory: PathBuf, noinstall: bool) {
+
+    let cols = terminal_size()
+        .map(|(width, _)| width.0 as usize - 10)
+        .unwrap_or(80usize);
+
     let dir: PathBuf = PathBuf::from("/usr/local/bin");
     let before_install_files = find_files_because_the_user_is_too_lazy(dir);
 
@@ -22,16 +32,14 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
     );
 
     let num_cpus = num_cpus::get();
-    let mut make_process = std::process::Command::new("make")
-        .args(["-j", &num_cpus.to_string()])
-        .current_dir(&directory)
-        .stderr(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .spawn()
-        .expect("Couldn't start the make process.");
 
-    let stderr = make_process.stderr.take().unwrap();
-    let reader = std::io::BufReader::new(stderr);
+    let make_replacement = cmd!("make", "-j", &num_cpus.to_string())
+        .dir(&directory)
+        .stderr_to_stdout()
+        .unchecked();
+
+    let read = make_replacement.reader();
+    let reader = BufReader::new(read.unwrap());
     let mut full_content = String::new();
     let mut has_error = false;
 
@@ -47,11 +55,10 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
             || content.contains("LDSHARED")
             || content.contains("RANLIB")
             || content.contains("Building")
-            || content.contains("Built")
-        {
+            || content.contains("Built") {
             content = strip_ansi_codes(&content.to_string().to_owned()).to_string();
             content = content.trim().to_string();
-            let mut content_vec = content
+            let mut content_vec = content //some weird processing
                 .split_whitespace()
                 .map(String::from)
                 .collect::<Vec<String>>();
@@ -60,23 +67,27 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
                 *s = s.purple().bold().to_string();
             });
             content = content_vec.join(" ");
+            content = content.unicode_truncate(cols).0.to_string();
+
             print!("\r\x1B[K{}", content.trim_end()); //do beautiful stuff
             std::io::stdout().flush().unwrap();
         } else if content.contains("error:")
             || content.contains("No targets.")
-            || content.contains("make: ***")
-        {
-            has_error = true;
-            full_content.push_str(&raw_content.clone());
-            full_content.push('\n');
-            continue;
-        }
+            || content.contains("make: ***") {
+                has_error = true;
+                full_content.push_str(&raw_content.clone());
+                full_content.push('\n');
+                continue;
+            }
         full_content.push_str(&raw_content.clone());
         full_content.push('\n');
     }
-    let _waiter = make_process
-        .wait()
-        .unwrap_or_else(|_| panic!("Couldn't wait for the make process to finish."));
+
+    log_to_file(directory.clone(), "make".to_string(), full_content.clone());
+    println!();
+    println!(
+        "The make process has finished. The full output is available in ./latest-make.txt."
+    );
 
     if has_error {
         println!("{}", "\nAn error occurred while compiling.".red().bold());
