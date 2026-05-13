@@ -1,30 +1,29 @@
 use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
-use std::{
-    io::BufRead,
-    path::PathBuf,
-    process::{Command, exit},
-};
+use std::{io, io::BufRead, path::PathBuf, process::{Command, exit}};
+use std::io::{Read, Write};
+use duct::cmd;
+use crate::logging::log_to_file;
 
-pub fn build_zig(directory: PathBuf, noinstall: bool) {
-    let mut zig_build_process = Command::new("zig")
-        .current_dir(&directory)
-        .arg("build")
-        .arg("-Doptimize=ReleaseFast")
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .expect("Couldn't start the zig build process.");
+pub fn build_zig(directory: PathBuf, noinstall: bool)   {
+    let mut zig_build_process = cmd!("zig", "build", "-Doptimize=ReleaseFast")
+        .dir(&directory)
+        .stdout_to_stderr() // Move any rare stdout into the same stream
+        .reader()
+        .unwrap();
 
-    let stderr = zig_build_process.stderr.take().unwrap();
-    let reader = std::io::BufReader::new(stderr);
-    for line in reader.lines() {
-        print!("\r\x1B[K{}", line.unwrap_or("".to_string()).bold().purple());
+    let mut buf = [0u8; 8 * 1024];
+    let stdout_handle = io::stdout();
+    let mut terminal = stdout_handle.lock();
+
+    loop {
+        let n = zig_build_process.read(&mut buf).unwrap_or(0);
+        if n == 0 { break }
+        terminal.write_all(&buf[..n]).unwrap();
+        terminal.flush().unwrap();
+
     }
-
-    let _waiter = &zig_build_process
-        .wait()
-        .expect("Couldn't wait for the zig build process.");
+    terminal.flush().unwrap();
 
     let out_dir = PathBuf::from(format!("{}/zig-out/bin", directory.to_str().unwrap()));
     if noinstall {

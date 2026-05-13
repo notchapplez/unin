@@ -6,17 +6,16 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio, exit};
+use duct::cmd;
 use unin_bin::{UninPackage, registry_write, time_create};
 
 pub fn start_meson(directory: PathBuf, noinstall: bool) {
-    let mut setup = Command::new("meson")
-        .args(["setup", "build"]) //build is the path to the build directory!
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .current_dir(directory.clone())
-        .spawn();
+    let setup = cmd!("meson", "setup", "build")
+        .stderr_to_stdout()
+        .dir(directory.clone())
+        .unchecked();
 
-    let stdout = setup.as_mut().unwrap().stdout.take().unwrap();
+    let stdout = setup.reader().unwrap();
     let reader = BufReader::new(stdout);
     let mut full_content = String::new();
     let mut has_error = false;
@@ -37,11 +36,7 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         std::thread::sleep(std::time::Duration::from_millis(random_delay));
         full_content.push_str(format!("{}\n", &raw_content.clone()).as_str());
     }
-    let waiter = setup.unwrap().wait().unwrap();
 
-    if !waiter.success() {
-        println!("\nConfiguration failed.");
-    }
     if has_error {
         println!(
             "{} The full error will be printed here.\n",
@@ -63,16 +58,13 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
     drop(write_log);
 
     let cpu_cores = num_cpus::get();
-    let mut child = Command::new("ninja")
-        .args(["-C", "build", "-j", &cpu_cores.to_string()])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .current_dir(directory.clone())
-        .spawn();
 
-    let childed = child.as_mut().unwrap().stdout.take().unwrap();
+    let cmd = cmd!("meson", "compile", "-C", "build", "-j", &cpu_cores.to_string())
+        .dir(directory.clone())
+        .stderr_to_stdout()
+        .unchecked();
 
-    let stdout = childed;
+    let stdout = cmd.reader().unwrap();
     let reader = BufReader::new(stdout);
     let mut content_full = String::new();
     let mut has_error = false;
@@ -87,7 +79,6 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         content_full.push_str(line.as_str());
         continue;
     }
-    let _waiter = child.unwrap().wait().unwrap();
     if has_error {
         println!(
             "Build using ninja failed. If you want, I can show you the output of the build process. I don't care if you want to, here it is:"
@@ -122,14 +113,12 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
         exit(1);
     }
 
-    let mut installer = Command::new("sudo")
-        .args(["ninja", "-C", "build", "install"])
-        .current_dir(directory.clone())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn();
+    let install = cmd!("ninja", "-C", "build", "install")
+        .stderr_to_stdout()
+        .dir(directory.clone())
+        .unchecked();
 
-    let stdout = installer.as_mut().unwrap().stdout.take().unwrap();
+    let stdout = install.reader().unwrap();
     let reader = BufReader::new(stdout);
     let mut full_content = String::new();
     let mut has_error = false;

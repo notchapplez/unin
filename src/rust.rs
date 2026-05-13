@@ -10,8 +10,9 @@ use std::{
     env, fs,
     io::{BufRead, Write},
     path::PathBuf,
-    process::{Command, Stdio, exit},
+    process::exit,
 };
+use duct::cmd;
 
 pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     let mut full_path = String::new();
@@ -27,17 +28,14 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
 
     println!("Now compiling {}", full_path.yellow().underline()); //prints a start message
 
-    let mut child = Command::new("cargo")
-        .args(["build", "--release", "--color", "always"])
-        .current_dir(&directory)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to compile");
+    let child = cmd!("cargo", "build", "--release")
+        .dir(&directory)
+        .stderr_to_stdout()
+        .unchecked();
 
     let mut full_out = String::new();
-    let stderr = child.stderr.take().unwrap();
-    let reader = std::io::BufReader::new(stderr);
+    let output = child.reader().unwrap();
+    let reader = std::io::BufReader::new(output);
     let mut has_error: bool = false;
     for line in reader.lines() {
         match line {
@@ -87,12 +85,15 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     exit(0)
 }
 pub fn clean(directory: PathBuf) {
-    let clean_process_cargo = Command::new("cargo")
-        .args(["clean"])
-        .current_dir(&directory)
-        .output();
+
+    let clean_process_cargo = cmd!("cargo", "clean")
+        .dir(directory)
+        .unchecked()
+        .stderr_to_stdout()
+        .run();
+
     println!(
         "{}",
-        String::from_utf8_lossy(&clean_process_cargo.unwrap().stderr).trim()
+        String::from_utf8_lossy(&clean_process_cargo.unwrap().stdout).trim()
     );
 }
