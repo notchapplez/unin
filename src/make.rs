@@ -1,22 +1,22 @@
+use crate::logging::log_to_file;
 use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
 use dialoguer::console::strip_ansi_codes;
+use duct::cmd;
 use path_absolutize::Absolutize;
+use std::io::BufReader;
+use std::process::Output;
 use std::{
     fs,
     io::{BufRead, Write},
     path::PathBuf,
     process::exit,
 };
-use std::io::BufReader;
-use duct::cmd;
-use unin_bin::return_registry_path;
-use unicode_truncate::UnicodeTruncateStr;
 use terminal_size::terminal_size;
-use crate::logging::log_to_file;
+use unicode_truncate::UnicodeTruncateStr;
+use unin_bin::return_registry_path;
 
 pub fn build_make(directory: PathBuf, noinstall: bool) {
-
     let cols = terminal_size()
         .map(|(width, _)| width.0 as usize - 10)
         .unwrap_or(80usize);
@@ -55,7 +55,8 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
             || content.contains("LDSHARED")
             || content.contains("RANLIB")
             || content.contains("Building")
-            || content.contains("Built") {
+            || content.contains("Built")
+        {
             content = strip_ansi_codes(&content.to_string().to_owned()).to_string();
             content = content.trim().to_string();
             let mut content_vec = content //some weird processing
@@ -73,21 +74,20 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
             std::io::stdout().flush().unwrap();
         } else if content.contains("error:")
             || content.contains("No targets.")
-            || content.contains("make: ***") {
-                has_error = true;
-                full_content.push_str(&raw_content.clone());
-                full_content.push('\n');
-                continue;
-            }
+            || content.contains("make: ***")
+        {
+            has_error = true;
+            full_content.push_str(&raw_content.clone());
+            full_content.push('\n');
+            continue;
+        }
         full_content.push_str(&raw_content.clone());
         full_content.push('\n');
     }
 
     log_to_file(directory.clone(), "make".to_string(), full_content.clone());
     println!();
-    println!(
-        "The make process has finished. The full output is available in ./latest-make.txt."
-    );
+    println!("The make process has finished. The full output is available in ./latest-make.txt.");
 
     if has_error {
         println!("{}", "\nAn error occurred while compiling.".red().bold());
@@ -151,41 +151,35 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
         .iter()
         .for_each(|b| println!("{}", b.to_str().unwrap()));
 
-    let mut installation_process = std::process::Command::new("sudo")
-        .arg("make")
-        .arg(prefix_argument)
-        .arg("install")
-        .current_dir(&directory)
-        .stderr(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .spawn()
-        .expect("Couldn't start the make process.");
-
-    let stderr = installation_process.stderr.take().unwrap();
-    let reader = std::io::BufReader::new(stderr);
+    let installation_process = cmd!("sudo", "make", prefix_argument, "install")
+        .stderr_to_stdout()
+        .dir(&directory)
+        .unchecked();
+    let output = installation_process.reader().unwrap();
+    let reader = BufReader::new(output);
     let mut full_content = String::new();
     let mut has_error = false;
-    for mut line in reader.lines() {
-        if let Ok(ref mut content) = line {
-            let raw_content = content.clone();
-            if line.as_mut().unwrap().trim().contains("error") {
-                has_error = true;
-                print!("\r\x1B[KError: {}", line.expect("REASON").red());
-                std::thread::sleep(std::time::Duration::from_millis(1000));
-                full_content.push_str(&raw_content.clone());
-                full_content.push('\n');
-                continue;
-            } else {
-                print!("\r\x1B[K{}", line.expect("REASON").purple());
+    for line in reader.lines() {
+        match line {
+            Ok(content) => {
+                let raw_content = content.clone();
+                let trimmed = content.trim();
+                if trimmed.contains("error")
+                    || trimmed.contains("make: ***")
+                    || trimmed.contains("No targets.")
+                {
+                    has_error = true;
+                    print!("\r\x1B[KError: {}", raw_content.red());
+                    full_content.push_str(&raw_content);
+                    full_content.push('\n');
+                } else {
+                    print!("\r\x1B[K{}", raw_content.purple());
+                }
             }
+            Err(e) => eprintln!("read error: {}", e),
         }
     }
-    let waiter = installation_process
-        .wait()
-        .unwrap_or_else(|_| panic!("Couldn't wait for the make process to finish."));
-    if !waiter.success() {
-        println!("Installation failed.");
-    }
+
     let after_install = find_files_because_the_user_is_too_lazy(registry_path.clone());
     let uniques = crate::tools::only_unique(&before_install_files, &after_install);
 
@@ -204,18 +198,13 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
 }
 
 pub fn clean(directory: PathBuf) {
-    let mut clean_process = std::process::Command::new("make")
-        .args(["clean"])
-        .current_dir(&directory)
-        .stderr(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .spawn()
-        .expect("Couldn't start the make process.");
-    let waiter = clean_process
-        .wait()
-        .unwrap_or_else(|_| panic!("Couldn't wait for the make process to finish."));
-
-    if waiter.success() {
+    let cleaner = cmd!("make", "clean")
+        .dir(&directory)
+        .stderr_to_stdout()
+        .run();
+    let output = cleaner.as_ref().unwrap();
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+    if cleaner.is_ok() {
         println!("Cleaned successfully.");
     } else {
         println!("Cleaning failed.");

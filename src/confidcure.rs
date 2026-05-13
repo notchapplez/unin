@@ -3,11 +3,11 @@ use crate::tools::find_files_because_the_user_is_too_lazy;
 use crate::tools::only_unique;
 use colored::Colorize;
 use dialoguer::console::strip_ansi_codes;
+use duct::cmd;
 use std::io;
-use std::io::{stdout, BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Write, stdout};
 use std::path::PathBuf;
 use std::process::exit;
-use duct::cmd;
 use unicode_truncate::UnicodeTruncateStr;
 use unin_bin::{UninPackage, registry_write, return_registry_path, time_create};
 
@@ -27,11 +27,11 @@ fn confihgure(path: PathBuf) {
         .read()
         .expect("Failed to read stdout");
 
-
     let mut full_stdout = String::new();
     let mut stdout_has_error = false;
     for line in output.lines() {
-        if line.contains("configure: error:") || line.contains("error:") || line.contains("failed") {
+        if line.contains("configure: error:") || line.contains("error:") || line.contains("failed")
+        {
             stdout_has_error = true;
             full_stdout.push_str(&line);
             full_stdout.push('\n');
@@ -99,7 +99,6 @@ fn make(directory: PathBuf) {
         println!("The make process yielded an error. The full output will shown below");
         println!("{}", full_stdout.as_str().red());
     }
-
 }
 
 fn install(path: PathBuf, noinstall: bool) {
@@ -152,12 +151,13 @@ fn install(path: PathBuf, noinstall: bool) {
         }
     }
 
-    if stdout_has_error{
+    if stdout_has_error {
         println!("The make install process yielded an error. The full output will shown below");
         println!("{}", full_stdout.as_str().red());
         exit(0)
     }
-    let after_install: Vec<PathBuf> = find_files_because_the_user_is_too_lazy(registry_path.clone());
+    let after_install: Vec<PathBuf> =
+        find_files_because_the_user_is_too_lazy(registry_path.clone());
     let binaries_installed: Vec<PathBuf> = only_unique(&before_install, &after_install);
 
     println!();

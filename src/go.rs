@@ -1,14 +1,13 @@
 use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
-use std::path::PathBuf;
-use std::process::exit;
-use std::{fs, io};
 use duct::cmd;
 use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
+use std::process::exit;
 use std::thread;
+use std::{fs, io};
 
 pub fn compile_go(directory: PathBuf, noinstall: bool) {
-
     let cmdchild = cmd!("go", "build", "-o", "unin_built_temp/")
         .dir(&directory)
         .stderr_to_stdout()
@@ -34,7 +33,10 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
     }
     if has_error {
         print!("\r\x1B[K");
-        println!("{}", "The go build process yielded an error. The full output will shown below.".yellow());
+        println!(
+            "{}",
+            "The go build process yielded an error. The full output will shown below.".yellow()
+        );
         println!("{}", merged_out.as_str().red());
         exit(1)
     }
@@ -59,7 +61,6 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
     if installer.is_err() {
         println!("Failed to install binaries");
     }
-
 }
 pub fn clean(directory: PathBuf) {
     let build_dir = PathBuf::from(format!("{}/unin_built_temp/", directory.to_str().unwrap()));

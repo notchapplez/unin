@@ -1,6 +1,6 @@
 //these are all imports
 use crate::logging::log_to_file;
-use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
+use crate::tools::find_files_because_the_user_is_too_lazy;
 use colored::Colorize;
 use dialoguer::{Confirm, Input};
 use duct::cmd;
@@ -9,10 +9,12 @@ use std::{
     fs as filesystem,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
-    process::{self as commands, Stdio, exit},
+    process::{self as commands, exit},
     thread as sleeping,
     time::Duration,
 };
+
+use unicode_segmentation::UnicodeSegmentation;
 use unin_bin::{UninPackage, registry_write, time_create};
 
 pub fn compile_cmake(directory: PathBuf, noinstall: bool) {
@@ -67,10 +69,11 @@ pub fn compile_cmake(directory: PathBuf, noinstall: bool) {
             old_argument_read.bold().yellow().underline()
         ); //notifies the user of the file
 
-        let check_user_continue_old_args: bool = Confirm::new() //asks the user if they want to use the old arguments
-            .with_prompt("Do you want to use the already used, cached arguments?")
-            .interact()
-            .unwrap();
+        let check_user_continue_old_args: bool =
+            Confirm::new() //asks the user if they want to use the old arguments
+                .with_prompt("Do you want to use the already used, cached arguments?")
+                .interact()
+                .unwrap();
 
         if check_user_continue_old_args {
             //if they do, use the old arguments and build
@@ -158,44 +161,69 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
     let cores = num_cpus::get(); //number of cores
     println!("Now compiling {}", directory.to_str().unwrap().yellow()); //Start message
 
-    let main_command = cmd!("cmake", "--build", ".", "-j", cores.to_string()).dir(&build_directory).stderr_to_stdout();
+    let main_command = cmd!("cmake", "--build", ".", "-j", cores.to_string())
+        .dir(&build_directory)
+        .stderr_to_stdout()
+        .unchecked();
 
     let mut output_merged = String::new();
     let mut has_error_build = false;
+
+    let cols = terminal_size::terminal_size().unwrap();
 
     let reader = main_command
         .reader()
         .unwrap_or_else(|e| panic!("Failed to read output from cmake build: {}", e));
 
     let buf_reader = BufReader::new(reader);
+
+    let mut stdout = std::io::stdout();
+    let mut last_display = String::new();
+    let mut lower = String::new();
+
     for line in buf_reader.lines() {
-        match line {
-            Ok(content) => {
-                let is_error = content.contains("error:") ||
-                    content.contains("failed") ||
-                    content.contains("CMake Error");
-
-                if !is_error {
-                    if content.trim_start().starts_with("--") {
-                        let content = content.replace("--", "").replace("\n", "");
-                        let content = content.trim_start();
-                        print!("\r\x1B[K{}", content.bold().purple());
-                        output_merged.push_str(content);
-                        output_merged.push('\n');
-                        std::io::stdout().flush().unwrap();
-                    }
-
-                } else {
-                    has_error_build = true;
-                    let content = content.replace("\n", "");
-                    output_merged.push_str(content.as_str());
-                    output_merged.push('\n');
-                    continue;
-                }
+        let content = match line {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Error reading stdout: {}", e);
+                continue;
             }
-            Err(e) => println!("Error reading stdout: {}", e),
+        };
+
+        lower.clear();
+        lower.extend(content.chars().flat_map(|c| c.to_lowercase()));
+        let is_error =
+            lower.contains("error:") || lower.contains("failed") || lower.contains("cmake error");
+
+        if is_error {
+            has_error_build = true;
+            output_merged.push_str(content.trim_end());
+            output_merged.push('\n');
+            continue;
+        }
+
+        if content.trim_start().starts_with("--") {
+            let content_trimmed = content.trim_start().trim_start_matches('-').trim_start();
+            let mut truncated = String::new();
+            for g in content_trimmed.graphemes(true) {
+                if truncated.graphemes(true).count() >= cols.0.0 as usize {
+                    break;
+                }
+                truncated.push_str(g);
+            }
+
+            if truncated != last_display {
+                last_display.clear();
+                last_display.push_str(&truncated);
+                print!("\r\x1B[K{}", truncated.bold().purple());
+                stdout.flush().ok();
+            }
+
+            output_merged.push_str(content_trimmed);
+            output_merged.push('\n');
         }
     }
+
     if has_error_build {
         println!(
             "{}",
@@ -232,9 +260,9 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
 
     for line in reader.lines().map_while(Result::ok) {
         let cloned_line = line.clone();
-        let is_error = cloned_line.contains("error:") ||
-            cloned_line.contains("failed") ||
-            cloned_line.contains("CMake Error");
+        let is_error = cloned_line.contains("error:")
+            || cloned_line.contains("failed")
+            || cloned_line.contains("CMake Error");
 
         if !is_error {
             let cloned_line = cloned_line.replace("\n", "");
