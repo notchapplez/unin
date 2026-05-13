@@ -730,6 +730,7 @@ dependencies = [
  "serde_json",
  "terminal_size",
  "time",
+ "unicode-segmentation",
  "unicode-truncate",
 ]
 
