@@ -37,6 +37,7 @@ pub fn compile_gleam(path: PathBuf, noinstall: bool) {
             println!("{}", line.red());
         }
     }
+	
 	if noinstall {
 		println!("Skipping install. The shipment is to be found in ./build/erlang-shipment");
 		return;
@@ -83,6 +84,7 @@ pub fn compile_gleam(path: PathBuf, noinstall: bool) {
 		println!("{}", "Failed to change the permissions of the runner script".red());
 		exit(1)
 	}
+	
 	let mut all_neccessary_paths = SmallVec::<[PathBuf; 2]>::new();
 	all_neccessary_paths.push(path_to_shipment_dest);
 	all_neccessary_paths.push(script_path);
@@ -93,6 +95,7 @@ pub fn compile_gleam(path: PathBuf, noinstall: bool) {
 		change_date: time_create(),
 		updated: false,
 	};
+	
 	registry_write(&package, true);
 }
 pub fn clean(path: PathBuf) {

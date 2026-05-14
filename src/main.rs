@@ -149,4 +149,4 @@ fn main() {
     detect(cli.path.to_str().unwrap().to_owned(), cli.noinstall);
 }
 
-//meow!
+//meow! i enjoyed coding this man, have fun being submitted to beest :3

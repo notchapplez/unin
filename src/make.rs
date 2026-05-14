@@ -62,15 +62,18 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
                 .split_whitespace()
                 .map(String::from)
                 .collect::<Vec<String>>();
+
             content_vec[0] = content_vec[0].blue().bold().to_string();
             content_vec[1..].iter_mut().for_each(|s| {
                 *s = s.purple().bold().to_string();
             });
+
             content = content_vec.join(" ");
             content = content.unicode_truncate(cols).0.to_string();
 
             print!("\r\x1B[K{}", content.trim_end()); //do beautiful stuff
             std::io::stdout().flush().unwrap();
+
         } else if content.contains("error:")
             || content.contains("No targets.")
             || content.contains("make: ***")
@@ -97,6 +100,7 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
         );
         exit(0)
     }
+
     if noinstall {
         println!();
         println!(
@@ -132,6 +136,7 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
             continue;
         }
     }
+
     if !has_install_rule {
         println!("The Makefile does not define an \"install\" rule. Aborting.");
         exit(2);
@@ -144,6 +149,7 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
     } else {
         prefix_argument = prefix_argument.trim().to_string();
     }
+
     let registry_path = return_registry_path();
     let before_install = find_files_because_the_user_is_too_lazy(registry_path.clone());
     before_install
@@ -154,6 +160,8 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
         .stderr_to_stdout()
         .dir(&directory)
         .unchecked();
+
+
     let output = installation_process.reader().unwrap();
     let reader = BufReader::new(output);
     let mut full_content = String::new();
@@ -212,3 +220,4 @@ pub fn clean(directory: PathBuf) {
         )
     }
 }
+

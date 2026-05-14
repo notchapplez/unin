@@ -45,6 +45,7 @@ pub fn build_zig(directory: PathBuf, noinstall: bool) {
         out.flush().unwrap();
         file.write_all(&chunk).unwrap();
     }
+
     file.flush().unwrap();
     let out_dir = PathBuf::from(format!("{}/zig-out/bin", directory.to_str().unwrap()));
     if noinstall {
@@ -67,7 +68,9 @@ pub fn clean(directory: PathBuf) {
         println!("Zig build directory doesn't exist, nothing to do.");
         exit(0)
     }
+
     let cleaning = std::fs::remove_dir_all(target_dir);
+
     if cleaning.is_err() {
         println!("Couldn't clean the zig build directory.");
     } else {
