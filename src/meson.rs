@@ -1,12 +1,12 @@
 use crate::logging::log_to_file;
 use crate::tools::find_files_because_the_user_is_too_lazy;
 use colored::Colorize;
+use duct::cmd;
 use rand::RngExt;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Command, Stdio, exit};
-use duct::cmd;
+use std::process::exit;
 use unin_bin::{UninPackage, registry_write, time_create};
 
 pub fn start_meson(directory: PathBuf, noinstall: bool) {
@@ -59,10 +59,17 @@ pub fn start_meson(directory: PathBuf, noinstall: bool) {
 
     let cpu_cores = num_cpus::get();
 
-    let cmd = cmd!("meson", "compile", "-C", "build", "-j", &cpu_cores.to_string())
-        .dir(directory.clone())
-        .stderr_to_stdout()
-        .unchecked();
+    let cmd = cmd!(
+        "meson",
+        "compile",
+        "-C",
+        "build",
+        "-j",
+        &cpu_cores.to_string()
+    )
+    .dir(directory.clone())
+    .stderr_to_stdout()
+    .unchecked();
 
     let stdout = cmd.reader().unwrap();
     let reader = BufReader::new(stdout);

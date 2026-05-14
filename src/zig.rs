@@ -1,15 +1,16 @@
 use crate::tools::{find_files_because_the_user_is_too_lazy, install_to_bin};
 use colored::Colorize;
-use std::{io, io::BufRead, path::PathBuf, process::{Command, exit}};
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Write};
-use std::process::Stdio;
 use duct::cmd;
-use crate::logging::log_to_file;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::{
+    io,
+    path::PathBuf,
+    process::exit,
+};
 
-pub fn build_zig(directory: PathBuf, noinstall: bool)   {
-
-    let mut child = cmd!("zig", "build", "-Doptimize=ReleaseFast")
+pub fn build_zig(directory: PathBuf, noinstall: bool) {
+    let child = cmd!("zig", "build", "-Doptimize=ReleaseFast")
         .dir(&directory)
         .stdout_to_stderr()
         .reader()
@@ -18,14 +19,21 @@ pub fn build_zig(directory: PathBuf, noinstall: bool)   {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let mut r = child;
-        let mut buf = [0u8; 8*1024];
+        let mut buf = [0u8; 8 * 1024];
         loop {
             match r.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => if tx.send(buf[..n].to_vec()).is_err() { break; },
+                Ok(n) => {
+                    if tx.send(buf[..n].to_vec()).is_err() { //i have no idea why i used a channel here, but whatever
+                        break;
+                    }
+                }
 
                 Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                Err(e) => { eprintln!("read error: {}", e); break; }
+                Err(e) => {
+                    eprintln!("read error: {}", e);
+                    break;
+                }
             }
         }
     });
@@ -55,6 +63,10 @@ pub fn build_zig(directory: PathBuf, noinstall: bool)   {
 }
 pub fn clean(directory: PathBuf) {
     let target_dir = PathBuf::from(format!("{}/.zig-cache", directory.to_str().unwrap()));
+    if !target_dir.exists() {
+        println!("Zig build directory doesn't exist, nothing to do.");
+        exit(0)
+    }
     let cleaning = std::fs::remove_dir_all(target_dir);
     if cleaning.is_err() {
         println!("Couldn't clean the zig build directory.");

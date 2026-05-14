@@ -11,6 +11,17 @@
 
 
 ### Note: unin is only supported on Linux, and is only tested on Arch Linux x64_86. Report bugs in the 'Issues' tab.
+
+## As of May 2026, unin supports the following languages/build systems:
+- Rust
+- CMake
+- Make
+- Go
+- Zig
+- Haskell (buggy)
+- gleam
+- configure
+- Meson
 ## Syntax:
 | Command                                                                        | Description                                                                                |
 |--------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -40,6 +51,7 @@ My beautiful commit graph (credits to hackatime-heatmap.shymike.dev)
 ##### • serde-json
 ##### • colored
 ##### • dialoguer
+##### • duct
 
 ### What I learned
 #### I learned how to use BufReaders, how to make my code a bit cleaner, how to implement OOP in my program, that not every build system likes me, and that I love Rust.

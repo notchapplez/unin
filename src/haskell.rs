@@ -1,14 +1,13 @@
+use crate::logging::log_to_file;
 use colored::Colorize;
+use duct::cmd;
 use std::io;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::exit;
-use std::sync::mpsc::{Receiver, Sender};
-use duct::cmd;
-use crate::logging::log_to_file;
 
-pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
+pub fn compile_haskell(directory: PathBuf, _noinstall: bool) {
     let updater = Command::new("cabal")
         .arg("update")
         .current_dir(directory.clone())
@@ -25,8 +24,6 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
         .dir(directory.clone())
         .stderr_to_stdout()
         .unchecked();
-
-
 
     let stdout = precompile.reader().unwrap();
     let reader = BufReader::new(stdout);
@@ -53,10 +50,13 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
             continue;
         }
         content.push_str(format!("{}\n", line).as_str());
-        continue
+        continue;
     }
     if has_error {
-        println!("{}", "Compilation failed. Output will be shown below.".yellow());
+        println!(
+            "{}",
+            "Compilation failed. Output will be shown below.".yellow()
+        );
         println!("{}", content.red());
     }
 

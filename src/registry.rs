@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display};
 use std::fs::{self, OpenOptions, create_dir_all};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::exit;
+use std::process::{exit, ExitStatus};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Serialize, Deserialize, PartialEq)]
@@ -219,10 +219,9 @@ pub fn registry_uninstall(package_name: String) {
         return;
     }
 
-    // Work on a mutable copy for removal
     let mut remaining = packages.clone();
 
-    let path = match pkg.paths.first() {
+    let _path = match pkg.paths.first() {
         Some(p) => p,
         None => {
             eprintln!("Package '{}' has no installed paths", pkg.name);
@@ -238,19 +237,22 @@ pub fn registry_uninstall(package_name: String) {
             return;
         }
     };
+    let mut delete_status = ExitStatus::default();
 
-    let path_str = path.to_str().unwrap_or_else(|| {
-        eprintln!("Path is not valid UTF-8");
-        std::process::exit(1);
-    });
+    for file in pkg.paths.iter() {
+        let path_str = file.to_str().unwrap_or_else(|| {
+            eprintln!("Path is not valid UTF-8");
+            std::process::exit(1);
+        });
 
-    let delete_status = std::process::Command::new("sudo")
-        .arg("rm")
-        .arg("-f")
-        .arg(path_str)
-        .output()
-        .unwrap_or_else(|e| panic!("Failed to delete the file: {}", e))
-        .status;
+        delete_status = std::process::Command::new("sudo")
+            .arg("rm")
+            .arg("-fr")
+            .arg(path_str)
+            .output()
+            .unwrap_or_else(|e| panic!("Failed to delete the file: {}", e))
+            .status;
+    }
 
     if !delete_status.success() {
         println!("Failed to delete the file for {}", pkg.name);
@@ -326,9 +328,8 @@ pub fn update_check_registry() {
 
             if !confirmation {
                 exit(0);
-                unreachable!()
             }
-            //on case of confirmation also unreachable!()
+            //in case of confirmation also unreachable!()
             registry_uninstall(package.name.clone());
         }
 

@@ -17,7 +17,7 @@ pub fn compile_go(directory: PathBuf, noinstall: bool) {
     let reader = BufReader::new(merged_out);
     let mut has_error = false;
     let mut merged_out = String::new();
-    for (mut line) in reader.lines() {
+    for mut line in reader.lines() {
         if !line.as_mut().unwrap().contains("error") && !line.as_mut().unwrap().contains("failed") {
             print!("\r\x1B[K{}", line.as_mut().unwrap().purple());
             has_error = true;

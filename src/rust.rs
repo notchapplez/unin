@@ -5,6 +5,7 @@ use crate::tools::{
 };
 use colored::Colorize;
 use dialoguer::console::strip_ansi_codes;
+use duct::cmd;
 use path_absolutize::Absolutize;
 use std::{
     env, fs,
@@ -12,7 +13,6 @@ use std::{
     path::PathBuf,
     process::exit,
 };
-use duct::cmd;
 
 pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     let mut full_path = String::new();
@@ -85,7 +85,6 @@ pub fn compile_rust(directory: PathBuf, noinstall: bool) {
     exit(0)
 }
 pub fn clean(directory: PathBuf) {
-
     let clean_process_cargo = cmd!("cargo", "clean")
         .dir(directory)
         .unchecked()

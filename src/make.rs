@@ -5,7 +5,6 @@ use dialoguer::console::strip_ansi_codes;
 use duct::cmd;
 use path_absolutize::Absolutize;
 use std::io::BufReader;
-use std::process::Output;
 use std::{
     fs,
     io::{BufRead, Write},

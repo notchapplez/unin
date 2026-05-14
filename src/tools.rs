@@ -13,6 +13,7 @@ use std::hash::Hash;
 use std::io::Read;
 use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use unin_bin::{UninPackage, registry_write, time_create};
+use crate::gleam::compile_gleam;
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>; //define UniversalResult
 
@@ -65,13 +66,13 @@ pub fn detect(path: String, noinstall: bool) {
             "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
-            "gleam.toml" => todo!(),
+            "gleam.toml" => compile_gleam(PathBuf::from(&path), noinstall),
             "Makefile" => build_make(PathBuf::from(&path), noinstall),
             "build.zig" => build_zig(PathBuf::from(&path), noinstall),
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
             "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall),
-        _ => unreachable!() ,
+            _ => unreachable!(),
         }
     } else {
         println!("No recognized build system found.");
@@ -99,6 +100,7 @@ pub fn detect_clean(directory: String) {
             "go.mod" => crate::go::clean(path.clone()),
             "cabal.project" => crate::haskell::clean(path.clone()),
             "configure" => crate::confidcure::clean(path.clone()),
+            "gleam.toml" => crate::gleam::clean(path.clone()),
             _ => {
                 continue;
             }

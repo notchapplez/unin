@@ -33,15 +33,15 @@ fn confihgure(path: PathBuf) {
         if line.contains("configure: error:") || line.contains("error:") || line.contains("failed")
         {
             stdout_has_error = true;
-            full_stdout.push_str(&line);
+            full_stdout.push_str(line);
             full_stdout.push('\n');
             continue;
         } else {
-            full_stdout.push_str(&line);
+            full_stdout.push_str(line);
             full_stdout.push('\n');
 
             println!("{}", line);
-            io::stdout().flush().unwrap();
+            stdout().flush().unwrap();
         }
     }
     print!("\r\x1B[K");
@@ -187,9 +187,7 @@ fn install(path: PathBuf, noinstall: bool) {
     }
 }
 pub fn clean(directory: PathBuf) {
-    let clean_process = cmd!("make", "clean")
-        .dir(&directory)
-        .stderr_to_stdout();
+    let clean_process = cmd!("make", "clean").dir(&directory).stderr_to_stdout();
     if let Err(e) = clean_process.run() {
         println!("Error cleaning: {}", e);
     } else {
