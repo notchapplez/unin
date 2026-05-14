@@ -51,6 +51,7 @@ pub fn detect(path: String, noinstall: bool) {
         "build.zig",
         "CMakeLists.txt",
         "meson.build",
+        "gleam.toml",
         "Cargo.toml",
         "go.mod",
         "Makefile",
@@ -64,12 +65,13 @@ pub fn detect(path: String, noinstall: bool) {
             "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
+            "gleam.toml" => todo!(),
             "Makefile" => build_make(PathBuf::from(&path), noinstall),
             "build.zig" => build_zig(PathBuf::from(&path), noinstall),
             "meson.build" => start_meson(PathBuf::from(&path), noinstall),
             "go.mod" => compile_go(PathBuf::from(&path), noinstall),
             "cabal.project" => compile_haskell(PathBuf::from(&path), noinstall),
-            _ => unreachable!(),
+        _ => unreachable!() ,
         }
     } else {
         println!("No recognized build system found.");
