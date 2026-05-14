@@ -84,10 +84,10 @@ enum SetupMode {
     Rust,    //done
     Cmake,   //done
     Make,    //done, hell yeah
-    Go,      //wait i think i did this -- yeah i did
-    Zig,     //somewhat done i guess
+    Go,      //done
+    Zig,     //done, but has bugs with files
     Swift,   //not done yet (todo!())
-    Haskell, //not done yet (todo!())
+    Haskell, //somewhat works
     D,       //what the hell is this anyway (todo!())
 }
 
@@ -100,7 +100,7 @@ fn main() {
     if cli.clean.is_some() {
         println!(
             "Cleaning {}",
-            cli.clean.clone().unwrap().to_str().unwrap().yellow()
+            cli.clean.clone().unwrap().canonicalize().unwrap().to_str().unwrap().yellow()
         );
         let _ = io::stdout().flush();
         detect_clean(

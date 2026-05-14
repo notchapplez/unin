@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
+use duct::cmd;
+use crate::logging::log_to_file;
 
 pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
     let updater = Command::new("cabal")
@@ -19,17 +21,17 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
         println!("cabal update failed.")
     }
 
-    let mut precompile_deps = Command::new("cabal")
-        .args(["build", "--only-dependencies"])
-        .current_dir(directory.clone())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn();
+    let mut precompile = cmd!("cabal", "build")
+        .dir(directory.clone())
+        .stderr_to_stdout()
+        .unchecked();
 
-    let (transmitter, receiver): (Sender<String>, Receiver<String>) = std::sync::mpsc::channel();
 
-    let stdout = precompile_deps.as_mut().unwrap().stdout.take().unwrap();
+
+    let stdout = precompile.reader().unwrap();
     let reader = BufReader::new(stdout);
+    let mut content = String::new();
+    let mut has_error: bool = false;
 
     for line in reader.lines().map_while(Result::ok) {
         if line.contains("Starting")
@@ -43,31 +45,36 @@ pub fn compile_haskell(directory: PathBuf, noinstall: bool) {
         {
             print!("\r\x1B[K{}", line);
             io::stdout().flush().unwrap();
-            transmitter.send(line.to_string()).unwrap();
+            content.push_str(format!("{}\n", line).as_str());
+            continue;
+        } else if line.contains("Error:") || line.contains("error:") || line.contains("Failed") {
+            has_error = true;
+            content.push_str(format!("{}\n", line).as_str());
             continue;
         }
-        print!("\r\x1B[K{}", "Debug".underline());
-        io::stdout().flush().unwrap();
-        transmitter.send(line.to_string()).unwrap(); //you send from the transmitter to the receiver
+        content.push_str(format!("{}\n", line).as_str());
+        continue
+    }
+    if has_error {
+        println!("{}", "Compilation failed. Output will be shown below.".yellow());
+        println!("{}", content.red());
     }
 
-    let stderr = precompile_deps.as_mut().unwrap().stderr.take().unwrap();
-    let stderr_reader = BufReader::new(stderr);
-    let mut stderr_has_error = false;
+    let _logger = log_to_file(directory.clone(), "build".to_string(), content);
 
-    for line in stderr_reader.lines().map_while(Result::ok) {
-        if line.contains("error") {
-            println!(
-                "{}",
-                "An error occurred. The full output will be shown below".red()
-            );
-            stderr_has_error = true;
-        }
-    }
-
-    if stderr_has_error {
-        println!("Full error output:");
-        receiver.iter().for_each(|line| println!("{}", line))
-    }
     exit(0)
+}
+pub fn clean(directory: PathBuf) {
+    let process = cmd!("cabal", "clean")
+        .dir(directory.clone())
+        .stderr_to_stdout()
+        .run();
+
+    if process.is_err() {
+        println!("cabal clean failed.");
+        exit(1)
+    } else {
+        println!("cabal clean successful.");
+        exit(0)
+    }
 }

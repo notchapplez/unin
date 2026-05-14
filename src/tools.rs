@@ -48,10 +48,10 @@ pub fn detect(path: String, noinstall: bool) {
 
     let priorities = [
         "configure",
+        "build.zig",
         "CMakeLists.txt",
         "meson.build",
         "Cargo.toml",
-        "build.zig",
         "go.mod",
         "Makefile",
         "cabal.project",
@@ -95,6 +95,8 @@ pub fn detect_clean(directory: String) {
             "Makefile" => crate::make::clean(path.clone()),
             "build.meson" => crate::meson::clean(path.clone()),
             "go.mod" => crate::go::clean(path.clone()),
+            "cabal.project" => crate::haskell::clean(path.clone()),
+            "configure" => crate::confidcure::clean(path.clone()),
             _ => {
                 continue;
             }

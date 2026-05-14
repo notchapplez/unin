@@ -115,7 +115,9 @@ fn install(path: PathBuf, noinstall: bool) {
 
         read_content.contains("install:") //already returns for me!!!
     };
-    if !provides_install(path.clone()) {
+    let path_to_makefile = PathBuf::from(format!("{}/Makefile", path.to_str().unwrap()));
+    println!("{path_to_makefile:?}");
+    if !provides_install(path_to_makefile.clone()) {
         println!(
             "{}{} Do it yourself you lazy sloth!",
             "Skipping installation".yellow().underline(),
@@ -182,5 +184,15 @@ fn install(path: PathBuf, noinstall: bool) {
             updated: false,
         };
         registry_write(&package, true)
+    }
+}
+pub fn clean(directory: PathBuf) {
+    let clean_process = cmd!("make", "clean")
+        .dir(&directory)
+        .stderr_to_stdout();
+    if let Err(e) = clean_process.run() {
+        println!("Error cleaning: {}", e);
+    } else {
+        println!("Cleaned successfully");
     }
 }
