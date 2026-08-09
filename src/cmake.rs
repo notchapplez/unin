@@ -279,11 +279,14 @@ fn make(directory: PathBuf, build_directory: PathBuf, noinstall: bool) {
             continue;
         }
     }
+
     let logger = log_to_file(
+        //logs to the file
         directory.to_path_buf(),
         "install".to_string(),
         output_merged.clone(),
     );
+
     println!(
         "\nLog for unin step \"install\" build can be found here: {}",
         logger

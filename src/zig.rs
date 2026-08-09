@@ -3,11 +3,7 @@ use colored::Colorize;
 use duct::cmd;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::{
-    io,
-    path::PathBuf,
-    process::exit,
-};
+use std::{io, path::PathBuf, process::exit};
 
 pub fn build_zig(directory: PathBuf, noinstall: bool) {
     let child = cmd!("zig", "build", "-Doptimize=ReleaseFast")
@@ -24,7 +20,8 @@ pub fn build_zig(directory: PathBuf, noinstall: bool) {
             match r.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    if tx.send(buf[..n].to_vec()).is_err() { //i have no idea why i used a channel here, but whatever
+                    if tx.send(buf[..n].to_vec()).is_err() {
+                        //i have no idea why i used a channel here, but whatever
                         break;
                     }
                 }

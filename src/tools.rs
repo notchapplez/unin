@@ -3,17 +3,19 @@ use crate::{
     rust::compile_rust, zig::build_zig,
 };
 
+use crate::gleam::compile_gleam;
 use crate::go::compile_go;
 use crate::haskell::compile_haskell;
+use crate::unicomp::{uninjson_compile as uninjson, uninjson_compile};
 use colored::Colorize;
 use path_absolutize::Absolutize;
 use std::collections::HashSet;
 use std::fs::File;
-use std::hash::Hash;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Read;
 use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::path::Path;
 use unin_bin::{UninPackage, registry_write, time_create};
-use crate::gleam::compile_gleam;
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>; //define UniversalResult
 
@@ -48,6 +50,7 @@ pub fn detect(path: String, noinstall: bool) {
         .collect();
 
     let priorities = [
+        "unin.json",
         "configure",
         "build.zig",
         "CMakeLists.txt",
@@ -63,6 +66,7 @@ pub fn detect(path: String, noinstall: bool) {
 
     if let Some(filename) = detected_file {
         match *filename {
+            "unin.json" => { uninjson_compile(parse_conf(&PathBuf::from(format!("{}/unin.json", &path))), &PathBuf::from(&path)) }, //todo!()
             "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
@@ -107,16 +111,16 @@ pub fn detect_clean(directory: String) {
         }
     }
 }
-///universal finder
+//universal finder
 pub fn find_files_because_the_user_is_too_lazy(directory: PathBuf) -> Vec<PathBuf> {
     let temp = directory.canonicalize().unwrap();
 
-    let all_entries: Vec<PathBuf> = fs::read_dir(temp)
+    let entries: Vec<PathBuf> = fs::read_dir(temp)
         .unwrap()
         .filter_map(|res| res.ok().map(|e| e.path()))
         .collect();
 
-    find_executable_files(all_entries)
+    find_executable_files(entries)
 }
 
 pub fn install_to_bin(executables: Vec<PathBuf>) -> UniversalResult<()> {
@@ -249,3 +253,18 @@ pub fn only_unique<T: Eq + Hash + Clone>(first: &[T], second: &[T]) -> Vec<T> {
         .cloned()
         .collect()
 }
+
+pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    t.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[macro_export]
+macro_rules! out {
+    ($expr:expr) => {
+        println!("{}", $expr);
+    };
+}
+use crate::uniconf::{parse_conf, test};
+pub(crate) use out;

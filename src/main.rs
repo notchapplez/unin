@@ -10,11 +10,16 @@ pub mod make;
 mod meson;
 mod rust;
 pub mod tools;
+mod unicomp;
 pub mod zig;
+
+mod git;
+mod uniconf;
 
 use crate::tools::*;
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
+use git2::Repository;
 use std::{
     io::{self, Write},
     path::PathBuf,
@@ -37,7 +42,7 @@ struct Cli {
         default_value = ".",
         help = "Path to the directory to compile"
     )]
-    path: PathBuf,
+    path: String,
 
     #[arg(long, default_value = "false", help = "Skip the install step")]
     noinstall: bool,
@@ -145,8 +150,13 @@ fn main() {
             SetupMode::D => installer::setup_files_lang("d".to_owned()),
         }
     }
+    if cli.path.clone().starts_with("https://") {
+        out!(cli.path.clone());
+        crate::git::git(cli.path.clone(), cli.noinstall)
+    }
 
-    detect(cli.path.to_str().unwrap().to_owned(), cli.noinstall);
+    detect(cli.path, cli.noinstall);
 }
 
 //meow! i enjoyed coding this man, have fun being submitted to beest :3
+//whatever

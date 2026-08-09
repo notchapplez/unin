@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display};
 use std::fs::{self, OpenOptions, create_dir_all};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{exit, ExitStatus};
+use std::process::{ExitStatus, exit};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Serialize, Deserialize, PartialEq)]

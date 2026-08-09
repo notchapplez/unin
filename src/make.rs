@@ -73,7 +73,6 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
 
             print!("\r\x1B[K{}", content.trim_end()); //do beautiful stuff
             std::io::stdout().flush().unwrap();
-
         } else if content.contains("error:")
             || content.contains("No targets.")
             || content.contains("make: ***")
@@ -161,7 +160,6 @@ pub fn build_make(directory: PathBuf, noinstall: bool) {
         .dir(&directory)
         .unchecked();
 
-
     let output = installation_process.reader().unwrap();
     let reader = BufReader::new(output);
     let mut full_content = String::new();
@@ -220,4 +218,3 @@ pub fn clean(directory: PathBuf) {
         )
     }
 }
-
