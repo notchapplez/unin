@@ -33,12 +33,10 @@ pub fn parse_conf(config_path: &PathBuf) -> Uniconf {
         exit(1)
     }
 
-    let string =
-        fs::read_to_string(config_path).unwrap_or_else(|_| panic!("Failed to read to string"));
+    let string = fs::read_to_string(config_path).unwrap_or_else(|_| panic!("Failed to read to string"));
 
-    let structure: Uniconf = serde_json::from_str(string.as_str()).unwrap();
-
-    todo!()
+    serde_json::from_str(string.as_str()).unwrap()
+    
 }
 pub fn create_conf() {
     todo!()

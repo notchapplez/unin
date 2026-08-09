@@ -13,8 +13,8 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Read;
-use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use std::path::Path;
+use std::{env, fs, io, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 use unin_bin::{UninPackage, registry_write, time_create};
 
 type UniversalResult<T> = Result<T, Box<dyn std::error::Error>>; //define UniversalResult
@@ -66,7 +66,10 @@ pub fn detect(path: String, noinstall: bool) {
 
     if let Some(filename) = detected_file {
         match *filename {
-            "unin.json" => { uninjson_compile(parse_conf(&PathBuf::from(format!("{}/unin.json", &path))), &PathBuf::from(&path)) }, //todo!()
+            "unin.json" => uninjson_compile(
+                parse_conf(&PathBuf::from(format!("{}/unin.json", path))),
+                &PathBuf::from(&path),
+            ),
             "configure" => init_build(PathBuf::from(&path), noinstall),
             "CMakeLists.txt" => compile_cmake(PathBuf::from(&path), noinstall),
             "Cargo.toml" => compile_rust(PathBuf::from(&path), noinstall),
