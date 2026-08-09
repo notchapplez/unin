@@ -36,7 +36,7 @@ pub fn uninjson_compile(uniconf: Uniconf, dir: &PathBuf) {
         let comp_cmd = cmd!(temp.0, temp.1)
             .dir(dir)
             .stderr_to_stdout()
-            .stdout_file()
+            //.stdout_file(todo!())
             .run();
 
         if comp_cmd.is_err() {
