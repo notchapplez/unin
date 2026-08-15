@@ -1,1 +1,3 @@
-configure compilation + make compilation
+configure compilation + make compilation --done
+cmakedefaults compiling
+finish unicomp
