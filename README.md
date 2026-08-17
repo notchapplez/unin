@@ -18,7 +18,7 @@
 - Make
 - Go
 - Zig
-- Haskell (buggy)
+- Haskell (hella buggy)
 - gleam
 - configure
 - Meson
